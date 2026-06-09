@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>M12S Banana Codex – Rep 2 Quiz</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Exo+2:wght@300;400;700&display=swap');
@@ -113,6 +116,38 @@ main{width:100%;max-width:1120px;display:grid;grid-template-columns:300px 1fr;ga
 .target-btn:hover{transform:translate(-50%,-50%) scale(1.3);filter:brightness(1.5)}
 .target-btn.hidden{display:none}
 .target-btn:disabled{cursor:default}
+
+/* P5 animation panel */
+.p5-anim-panel {
+  display:none;
+  flex-direction:column;
+  gap:10px;
+  margin-top:4px;
+}
+.p5-anim-panel.visible { display:flex; }
+.p5-next-btn {
+  padding:8px 14px;
+  border-radius:7px;
+  border:none;
+  background:#2244bb;
+  color:#fff;
+  font-family:"Rajdhani",sans-serif;
+  font-size:13px;
+  font-weight:700;
+  letter-spacing:1px;
+  cursor:pointer;
+  transition:all .15s;
+  text-transform:uppercase;
+  align-self:flex-start;
+}
+.p5-next-btn:hover { filter:brightness(1.2); }
+.p5-next-btn:disabled { opacity:.4; cursor:not-allowed; filter:none; }
+.p5-step-label {
+  font-size:12px;
+  color:var(--muted);
+  font-family:"Rajdhani",sans-serif;
+  letter-spacing:1px;
+}
 
 /* Pulsing square target */
 @keyframes targetPulse {
@@ -275,6 +310,12 @@ main{width:100%;max-width:1120px;display:grid;grid-template-columns:300px 1fr;ga
     <div class="tip-panel" id="tipPanel">
       <strong>💡 Tip:</strong> Although it doesn't impact the raid, standing at your clock position gives the whole party a clearer view of the mechanic — everyone can see their clone and the boss at the same time.
     </div>
+    <!-- Progress 5 animation panel -->
+    <div class="p5-anim-panel" id="p5Panel">
+      <div class="p5-step-label" id="p5StepLabel">Animation 1 of 1</div>
+      <button class="p5-next-btn" id="p5NextBtn" onclick="p5PlayNext()">&#9654; Play Next Animation</button>
+    </div>
+
     <!-- Progress 2 answer panel -->
     <div class="panel p2-panel" id="p2Panel">
       <div class="p2-section">
@@ -347,13 +388,7 @@ main{width:100%;max-width:1120px;display:grid;grid-template-columns:300px 1fr;ga
         <circle cx="250" cy="250" r="227" fill="url(#ringGlow)"/>
         <circle cx="250" cy="250" r="227" fill="none" stroke="#c050a8" stroke-width="3" opacity=".7"/>
         <circle cx="250" cy="250" r="221" fill="none" stroke="#ff80d8" stroke-width="1.5" opacity=".3"/>
-        <!-- Boss hitbox rings -->
-        <circle cx="250" cy="250" r="72" fill="none" stroke="#cc3333" stroke-width="1.5" opacity=".5"/>
-        <circle cx="250" cy="250" r="60" fill="none" stroke="#cc3333" stroke-width="1" opacity=".28"/>
-        <!-- Boss center -->
-        <circle cx="250" cy="250" r="26" fill="#1a0808" stroke="#993333" stroke-width="1.5" opacity=".85"/>
-        <text x="250" y="246" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="8" fill="#cc5555" letter-spacing="1">BOSS</text>
-        <text x="250" y="257" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="7" fill="#884444" letter-spacing="1">LINDWURM</text>
+
 
         <!-- ============================================================ -->
         <!-- STATIC WAYMARKS  (non-clickable, decorative)               -->
@@ -431,6 +466,16 @@ main{width:100%;max-width:1120px;display:grid;grid-template-columns:300px 1fr;ga
       <svg id="playerSVG" viewBox="0 0 500 500"
         style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:20;"
         xmlns="http://www.w3.org/2000/svg">
+        <!-- P5 Boss Indicator — gap at WEST, rotated 90deg CW from south -->
+        <g id="p5BossIndicator" style="pointer-events:none;transform-origin:250px 250px">
+          <circle cx="250" cy="250" r="22" fill="#1a0808" stroke="#993333" stroke-width="1.5" opacity=".9"/>
+          <text x="250" y="254" text-anchor="middle" font-family="Rajdhani,sans-serif" font-size="8" fill="#cc5555" letter-spacing="1">BOSS</text>
+          <path d="M 230.20,269.80 A 28,28 0 1,1 269.80,269.80" fill="none" stroke="#cc3333" stroke-width="2.5" stroke-linecap="round" opacity=".9"/>
+          <path d="M 223.13,276.87 A 38,38 0 1,1 276.87,276.87" fill="none" stroke="#cc3333" stroke-width="1.5" stroke-linecap="round" opacity=".6"/>
+          <line x1="230.2" y1="269.8" x2="220.3" y2="279.7" stroke="#cc3333" stroke-width="2" opacity=".8" stroke-linecap="round"/>
+          <line x1="269.8" y1="269.8" x2="279.7" y2="279.7" stroke="#cc3333" stroke-width="2" opacity=".8" stroke-linecap="round"/>
+        </g>
+
         <!-- Highlight ring behind active player (JS moves it) -->
         <circle id="roleHighlight" cx="-999" cy="-999" r="16"
           fill="#e8b84b" fill-opacity="0.25" stroke="#e8b84b" stroke-width="2.5" opacity="0"/>
@@ -663,6 +708,7 @@ function clearClones(){
   const layer = document.getElementById("cloneLayer");
   if(!layer) return;
   layer.setAttribute("opacity","0");
+  layer.querySelectorAll(".clone-node").forEach(n => n.setAttribute("opacity","1"));
   layer.querySelectorAll(".clone-node circle").forEach(c => c.setAttribute("stroke","#888"));
   layer.querySelectorAll(".clone-node text").forEach(t => t.textContent = "?");
 }
@@ -723,11 +769,11 @@ function angleToName(a){
 function buildPhaseIndicator(){
   const el = document.getElementById("phaseIndicator");
   el.innerHTML = "";
-  ["1","2","3","4"].forEach((n,i) => {
+  ["1","2","3","4","5","6","7"].forEach((n,i) => {
     const dot = document.createElement("div");
     dot.className = "phase-dot"; dot.id = "ph"+n; dot.textContent = n;
     el.appendChild(dot);
-    if(i<3){
+    if(i<6){
       const sep = document.createElement("div");
       sep.className = "phase-sep"; sep.textContent = "›";
       el.appendChild(sep);
@@ -762,8 +808,9 @@ function setActivePhase(){
 
 // ── Full reset ────────────────────────────────────────────────────
 function fullReset(){
+  setAnimating(false);
   currentQ=null; answered=false; questionNum=0;
-  hideAllTargets(); clearClones(); clearTethers(); hideTip(); hideP2Panel(); clearBossClones(); hideP3Targets(); hideP4Targets();
+  hideAllTargets(); clearClones(); clearTethers(); hideTip(); hideP2Panel(); clearBossClones(); hideP3Targets(); hideP4Targets(); clearP5Anim();
   resetAllPlayerPositions();
   buildPhaseIndicator();
   unlockNewQuestion();
@@ -826,6 +873,17 @@ function resetAllPlayerPositions(){
 
 const TIPS = {
   p1: "💡 <strong>Tip:</strong> Although it doesn't impact the raid, standing at your clock position gives the whole party a clearer view of the mechanic — everyone can see their clone and the boss at the same time.",
+  p5cone: "⚠️ <strong>Warning:</strong> The boss has turned to face SE (135°) or SW (225°). All players must move behind the boss to avoid the incoming <strong>Snaking Kick</strong> cleave!",
+  p7s1_side: "💡 <strong>Tip:</strong> As a Netherwrath baiter, get ready to return to your original fan position for the upcoming boss stomp.",
+  p7s1_north: "💡 <strong>Tip:</strong> Get ready to loop around the boss starting at the NW clone to get the incoming stack.",
+  p7s1: "💡 <strong>Tip:</strong> Stay in position during the cones.",  // fallback
+  p7s2_north: "💡 <strong>Tip:</strong> After soaking the NW stack, get ready to run to the NE clone for the next stack — but watch out, the boss will stomp soon at the N clone!",
+  p7s2_side: "💡 <strong>Tip:</strong> Stay in your fan position and be careful not to drift too close to the N clone — the boss stomp is about to land there.",
+  p7s2: "💡 <strong>Tip:</strong> Side players return to fans. N group soaks NW stack.",  // fallback
+  p7s3: "💡 <strong>Tip:</strong> Move swiftly to the NE clone to soak the last stack. Stay clear of the boss stomp cones fanning out from the N clone.",
+
+  p6: "💡 <strong>Tip:</strong> E/W positioning is critical for baiting near/far correctly — cone players must be the <strong>farthest two</strong> from the boss, stack players the <strong>two closest</strong>. Both pairs must be close enough to each other to share Netherwrath damage.",
+  p5stack: "💡 <strong>Tip:</strong> Cone players should drift slightly inward toward the boss after stacking — this gives room to release the cone outward without clipping the stack group.",
   p4: "💡 <strong>Tip:</strong> Best to wait for the tethers to finalize before running into position — moving too early can cause you to grab the wrong tether.",
   p3: "💡 <strong>Tip:</strong> If you need to grab a tether, do a little dance around the tether target to make sure you grab it — stand on it briefly, step off, then back on if needed.",
   p2: "💡 <strong>Tip:</strong> When the boss clones spawn, look from <strong>D (true north)</strong> — <strong>Light Party 1 looks counter-clockwise</strong> and <strong>Light Party 2 looks clockwise</strong> to find their clone tether (if any).",
@@ -908,8 +966,8 @@ function submitP2(){
 // 8 target positions for P4
 const P4_TARGETS = {
   "s":      { px:50.00, py:90.00 },
-  "120":    { px:84.64, py:70.00 },
-  "240":    { px:15.36, py:70.00 },
+  "120":    { px:90.00, py:50.00 },  // 90 deg E
+  "240":    { px:10.00, py:50.00 },  // 270 deg W
   "n_mid":  { px:50.00, py:21.00 },
   "fan10":  { px:56.95, py:10.61 },
   "fan20":  { px:63.68, py:12.41 },
@@ -919,8 +977,8 @@ const P4_TARGETS = {
 
 const P4_DEST_SVG = {
   "s":      { cx:250.0, cy:450.0 },
-  "120":    { cx:423.2, cy:350.0 },
-  "240":    { cx:76.8,  cy:350.0 },
+  "120":    { cx:450.0, cy:250.0 },  // 90 deg E
+  "240":    { cx:50.0,  cy:250.0 },  // 270 deg W
   "n_mid":  { cx:250.0, cy:105.0 },
   "fan10":  { cx:284.7, cy:53.0  },
   "fan20":  { cx:318.4, cy:62.1  },
@@ -930,8 +988,8 @@ const P4_DEST_SVG = {
 
 const P4_SPOT_LABELS = {
   "s":      "South (no tether)",
-  "120":    "120 deg (defam LP2)",
-  "240":    "240 deg (defam LP1)",
+  "120":    "90 deg / East (defam LP2)",
+  "240":    "270 deg / West (defam LP1)",
   "n_mid":  "North mid (boss tether)",
   "fan10":  "Fan 10 deg (stack LP2)",
   "fan20":  "Fan 20 deg (cone LP2)",
@@ -1044,16 +1102,1017 @@ function answerP4(spot){
   moveAllPlayersP4(spot);
   redrawP4Tethers();
   if(ok){
-    wins++; updateScore();
     setFb("correct","&#10003; <strong>Correct!</strong><div class=\"explain\">You positioned correctly at <strong>"+P4_SPOT_LABELS[spot]+"</strong>.</div>");
     showTip("p4");
     markPhaseN(4,"done");
     unlockNewQuestion();
   } else {
     wipes++; updateScore();
+    setAnimating(false);
     setFb("wrong","&#10007; <strong>WIPE.</strong><div class=\"explain\">You went to <strong>"+(P4_SPOT_LABELS[spot]||spot)+"</strong> but should have gone to <strong>"+(P4_SPOT_LABELS[p4CorrectSpot]||p4CorrectSpot)+"</strong>. The raid wiped. Click Reset to try again.</div>");
     markPhaseN(4,"failed");
     lockNewQuestion();
+  }
+}
+
+// ── Progress 5 animation sequence ────────────────────────────────
+// Animation layer SVG — drawn on top of playerSVG
+// We'll use the bossCloneLayer for boss movement, and a new anim layer
+
+let p5Step = 0;
+let p5BossFacing = 135; // randomly set in step 4: 135 or 225
+const P5_STEPS = 5; // Steps: 1=Boss Stomp, 2=Defam+Echo, 3=Stacks, 4=Cones, 5=Dodge Boss
+
+function showP5Panel(){
+  const panel = document.getElementById("p5Panel");
+  if(panel) panel.classList.add("visible");
+  const btn = document.getElementById("p5NextBtn");
+  btn.onclick = p5PlayNext;  // always restore correct handler
+  btn.disabled = false;
+  updateP5StepLabel();
+}
+function hideP5Panel(){
+  const panel = document.getElementById("p5Panel");
+  if(panel) panel.classList.remove("visible");
+}
+function updateP5StepLabel(){
+  const el = document.getElementById("p5StepLabel");
+  const labels = ["Boss Stomp","Defam + Stomp Echo","Stack Resolution","Cone Resolution","Dodge the Boss"];
+  if(el) el.textContent = "Step " + (p5Step+1) + " of " + P5_STEPS + " — " + (labels[p5Step]||"");
+}
+
+// Find the SVG position of the boss-tether player (they are at n_mid after P4)
+function getBossTetherPlayerPos(){
+  const bossRole = ALL_ROLES.find(r => {
+    const ca = currentQ.shuffleMap[r];
+    return {"0":"boss","180":"none","45":"stack","315":"stack","90":"cone","270":"cone","135":"defam","225":"defam"}[ca] === "boss";
+  });
+  return bossRole ? getPlayerSVGPos(bossRole) : {cx:250, cy:105};
+}
+
+function p5PlayNext(){
+  document.getElementById("p5NextBtn").disabled = true;
+  setAnimating(true);
+  hideTip();
+  updateP5StepLabel();
+
+  if(p5Step === 0){
+    animateBossStomp(() => {
+      setAnimating(false);
+      p5Step++;
+      updateP5StepLabel();
+      document.getElementById("p5NextBtn").disabled = false;
+    });
+  } else if(p5Step === 1){
+    animateDefamAndEcho(() => {
+      hideP5Panel();
+      showP5StackQuestion();
+    });
+  } else if(p5Step === 2){
+    animateStackResolution(() => {
+      setAnimating(false);
+      p5Step++;
+      updateP5StepLabel();
+      document.getElementById("p5NextBtn").disabled = false;
+    });
+  } else if(p5Step === 3){
+    animateConeResolution(() => {
+      setAnimating(false);
+      p5Step++;
+      updateP5StepLabel();
+      document.getElementById("p5NextBtn").disabled = false;
+    });
+  } else if(p5Step === 4){
+    animateDodgeBoss(() => {
+      p5Step++;
+      hideP5Panel();
+      hideTip();
+      markPhaseN(5,"done");
+      unlockNewQuestion();
+      setSit("All mechanics resolved! Well done.");
+      setFb('correct','&#10003; <strong>Complete!</strong><div class="explain">All boss clone tethers and the dodge have resolved cleanly. Great job!</div>');
+    });
+  }
+}
+
+function animateBossStomp(onDone){
+  const animLayer = getOrCreateAnimLayer();
+  const ns = "http://www.w3.org/2000/svg";
+  const targetPos = getBossTetherPlayerPos();
+
+  // 1. Remove boss tether line IMMEDIATELY as boss begins moving
+  const bLayer = document.getElementById("bossCloneLayer");
+  if(bLayer){
+    bLayer.querySelectorAll("line").forEach(l => {
+      if(l.getAttribute("stroke")==="#38bdf8") l.remove();
+    });
+  }
+
+  // 2. Move boss indicator to target position
+  const bossIndicator = document.getElementById("p5BossIndicator");
+  if(bossIndicator){
+    bossIndicator.style.transition = "transform 0.7s ease-in-out";
+    const dx = targetPos.cx - 250;
+    const dy = targetPos.cy - 250;
+    bossIndicator.style.transform = "translate("+dx+"px,"+dy+"px)";
+  }
+
+  // 3. After boss arrives, draw cones + stomp circle, then fade all together
+  setTimeout(() => {
+    drawBossStompCones(animLayer, ns, targetPos);
+    // Stomp AOE circle — same radius as outer boss arc (r=38), same orange style
+    const circle = document.createElementNS(ns,"circle");
+    circle.setAttribute("cx", targetPos.cx);
+    circle.setAttribute("cy", targetPos.cy);
+    circle.setAttribute("r","38");
+    circle.setAttribute("fill","#cc1111");
+    circle.setAttribute("opacity","0.45");
+    circle.setAttribute("class","p5-cone"); // same class so fadeCones catches it
+    animLayer.appendChild(circle);
+
+    // 4. Fade all after 2s
+    setTimeout(() => {
+      fadeCones(animLayer, onDone);
+    }, 2000);
+  }, 750);
+}
+
+function getOrCreateAnimLayer(){
+  let layer = document.getElementById("p5AnimLayer");
+  if(!layer){
+    const svg = document.getElementById("playerSVG");
+    if(!svg) return null;
+    const ns = "http://www.w3.org/2000/svg";
+    layer = document.createElementNS(ns,"g");
+    layer.setAttribute("id","p5AnimLayer");
+    svg.appendChild(layer);
+  }
+  layer.innerHTML = "";
+  return layer;
+}
+
+function drawBossStompCones(layer, ns, fromPos){
+  // 4 narrow cones from boss stomp position toward the 4 fan players
+  // Fan positions in SVG: fan10, fan20, fan340, fan350
+  const fanTargets = [
+    P4_DEST_SVG["fan10"],
+    P4_DEST_SVG["fan20"],
+    P4_DEST_SVG["fan340"],
+    P4_DEST_SVG["fan350"],
+  ];
+  const coneLength = 200;
+  const halfAngleDeg = 8; // narrow cone half-angle in degrees
+
+  fanTargets.forEach(target => {
+    // Direction from boss position to fan target
+    const dx = target.cx - fromPos.cx;
+    const dy = target.cy - fromPos.cy;
+    const baseAngle = Math.atan2(dy, dx); // radians
+    const halfRad = halfAngleDeg * Math.PI / 180;
+
+    // Cone tip at fromPos, two sides spread by halfAngle
+    const lx = fromPos.cx + coneLength * Math.cos(baseAngle - halfRad);
+    const ly = fromPos.cy + coneLength * Math.sin(baseAngle - halfRad);
+    const rx = fromPos.cx + coneLength * Math.cos(baseAngle + halfRad);
+    const ry = fromPos.cy + coneLength * Math.sin(baseAngle + halfRad);
+
+    const poly = document.createElementNS(ns,"polygon");
+    poly.setAttribute("points", fromPos.cx+","+fromPos.cy+" "+lx+","+ly+" "+rx+","+ry);
+    poly.setAttribute("fill","#cc1111");
+    poly.setAttribute("opacity","0.55");
+    poly.setAttribute("class","p5-cone");
+    layer.appendChild(poly);
+  });
+}
+
+let _animGen = 0; // generation counter to cancel stale timeouts
+
+function setAnimating(on){
+  // Disable reset + role buttons during animation to prevent state corruption
+  document.getElementById("btnNext").disabled = on || document.getElementById("btnNext").disabled;
+  document.querySelectorAll(".role-btn").forEach(b => b.style.pointerEvents = on ? "none" : "");
+  document.querySelectorAll(".btn-reset").forEach(b => b.disabled = on);
+}
+
+function fadeCones(layer, onDone){
+  if(!layer) return;
+  const gen = ++_animGen;
+  const cones = layer.querySelectorAll(".p5-cone");
+  cones.forEach(c => {
+    c.style.transition = "opacity 1.5s ease";
+    c.style.opacity = "0";
+  });
+  setTimeout(() => {
+    if(gen !== _animGen) return; // stale — a newer animation started
+    if(layer) layer.innerHTML = "";
+    if(onDone) onDone();
+  }, 1600);
+}
+
+// ── Get positions of defam boss clones ──────────────────────────
+function getDefamCloneAngles(){
+  return BOSS_CLONE_ANGLES.filter(a => p3BossTetherMap[a] === "defam");
+}
+
+// ── Animate Step 2: Defam clones move + stomp echo AOE ───────────
+function animateDefamAndEcho(onDone){
+  const animLayer = getOrCreateAnimLayer();
+  const ns = "http://www.w3.org/2000/svg";
+  const defamAngles = getDefamCloneAngles();
+
+  // Find which players are at the defam boss clone positions (tethered roles)
+  // These are the roles whose P3 correct spot was each defam clone angle
+  const defamPlayerRoles = defamAngles.map(angle => {
+    return ALL_ROLES.find(r => {
+      const ca = currentQ.shuffleMap[r];
+      const tt = {"0":"boss","180":"none","45":"stack","315":"stack","90":"cone","270":"cone","135":"defam","225":"defam"}[ca];
+      if(tt !== "defam") return false;
+      const lp2 = angleLightParty[ca];
+      const matching = BOSS_CLONE_ANGLES.filter(a => p3BossTetherMap[a]==="defam");
+      const ccwO = ["315","270","225","135","90","45"];
+      const cwO  = ["45","90","135","225","270","315"];
+      const ord  = lp2==="1" ? ccwO : cwO;
+      return (ord.find(a=>matching.includes(a))||matching[0]) === angle;
+    });
+  });
+
+  // 1. Remove defam tether lines AND original defam clone circles immediately
+  const bLayer = document.getElementById("bossCloneLayer");
+  defamAngles.forEach(angle => {
+    const clonePos = BOSS_CLONE_SVG[angle];
+    if(!bLayer) return;
+    // Remove tether lines starting from this clone
+    bLayer.querySelectorAll("line").forEach(l => {
+      const x1 = parseFloat(l.getAttribute("x1"));
+      const y1 = parseFloat(l.getAttribute("y1"));
+      if(Math.abs(x1 - clonePos.cx) < 2 && Math.abs(y1 - clonePos.cy) < 2)
+        l.remove();
+    });
+    // Remove the clone circle/symbol group — find <g> children whose first circle is at this position
+    bLayer.querySelectorAll("g").forEach(g => {
+      const c = g.querySelector("circle");
+      if(c && Math.abs(parseFloat(c.getAttribute("cx")) - clonePos.cx) < 2
+           && Math.abs(parseFloat(c.getAttribute("cy")) - clonePos.cy) < 2)
+        g.remove();
+    });
+  });
+
+  // 2. Create moving defam clone indicators
+  const movers = [];
+  defamAngles.forEach((angle, i) => {
+    const startPos = BOSS_CLONE_SVG[angle];
+    const role = defamPlayerRoles[i];
+    const endPos = role ? getPlayerSVGPos(role) : startPos;
+
+    const g = document.createElementNS(ns,"g");
+    g.style.pointerEvents = "none";
+    g.style.transformOrigin = startPos.cx + "px " + startPos.cy + "px";
+
+    const c = document.createElementNS(ns,"circle");
+    c.setAttribute("cx", startPos.cx);
+    c.setAttribute("cy", startPos.cy);
+    c.setAttribute("r","13");
+    c.setAttribute("fill","#1a0808");
+    c.setAttribute("stroke","#cc3333");
+    c.setAttribute("stroke-width","2");
+    c.setAttribute("stroke-dasharray","4 3");
+    g.appendChild(c);
+    animLayer.appendChild(g);
+    movers.push({ g, startPos, endPos });
+  });
+
+  // 3. Animate movers to player positions
+  requestAnimationFrame(() => {
+    movers.forEach(({g, startPos, endPos}) => {
+      g.style.transition = "transform 0.7s ease-in-out";
+      const dx = endPos.cx - startPos.cx;
+      const dy = endPos.cy - startPos.cy;
+      g.style.transform = "translate("+dx+"px,"+dy+"px)";
+    });
+  });
+
+  // 4. After clones arrive, draw large AOE circles at defam players + S player (stomp echo)
+  // AOE appears at: both defam player positions + the "none" player at S position
+  // Radius ~182 (80% of arena r=227)
+  setTimeout(() => {
+    const aoePositions = [];
+    defamPlayerRoles.forEach(role => {
+      if(role) aoePositions.push(getPlayerSVGPos(role));
+    });
+    // S player (none tether) also gets stomp echo
+    const noneRole = ALL_ROLES.find(r => ({"0":"boss","180":"none","45":"stack","315":"stack","90":"cone","270":"cone","135":"defam","225":"defam"})[currentQ.shuffleMap[r]] === "none");
+    if(noneRole) aoePositions.push(getPlayerSVGPos(noneRole));
+
+    aoePositions.forEach(pos => {
+      const circle = document.createElementNS(ns,"circle");
+      circle.setAttribute("cx", pos.cx);
+      circle.setAttribute("cy", pos.cy);
+      circle.setAttribute("r","182");
+      circle.setAttribute("fill","#cc1111");
+      circle.setAttribute("opacity","0.45");
+      circle.setAttribute("class","p5-cone");
+      animLayer.appendChild(circle);
+    });
+
+    // 5. Fade all after 2s
+    setTimeout(() => {
+      fadeCones(animLayer, onDone);
+    }, 2000);
+  }, 750);
+}
+
+// ── P5 Stack Question ─────────────────────────────────────────────
+// Two targets: 22.5° and 337.5° at r=115
+const P5_STACK_TARGETS = {
+  "stack_r": { px:58.80, py:28.75, cx:294.0, cy:143.8 }, // 22.5° (right/CW)
+  "stack_l": { px:41.20, py:28.75, cx:206.0, cy:143.8 }, // 337.5° (left/CCW)
+};
+
+function showP5StackQuestion(){
+  setSit(`The Defams have gone off. Next up are the <strong>Stacks</strong>. As <strong>${currentRole}</strong>, which position do you move to for the stack?`);
+  setFb("neutral","");
+  const wrap = document.getElementById("arenaWrap");
+  wrap.querySelectorAll(".p5-stack-target").forEach(e=>e.remove());
+  for(const [key, pos] of Object.entries(P5_STACK_TARGETS)){
+    const btn = document.createElement("button");
+    btn.className = "target-box p5-stack-target";
+    btn.dataset.spot = key;
+    btn.style.left = pos.px+"%";
+    btn.style.top  = pos.py+"%";
+    btn.onclick = () => answerP5Stack(key);
+    wrap.appendChild(btn);
+  }
+}
+
+function getP5StackSpotForRole(role){
+  // Stack players: LP1 → stack_l (337.5° CCW), LP2 → stack_r (22.5° CW)
+  // Non-stack roles also need to move — but for the question we only ask current role
+  const ca = currentQ.shuffleMap[role];
+  const lp = angleLightParty[ca];
+  return lp === "1" ? "stack_l" : "stack_r";
+}
+
+function answerP5Stack(spot){
+  document.querySelectorAll(".p5-stack-target").forEach(b=>b.remove());
+  const correct = getP5StackSpotForRole(currentRole);
+  const ok = (spot === correct);
+  // Move players — stack players go to their stack positions
+  movePlayersToStack(spot);
+  if(ok){
+    // Re-show animation panel for step 3 (no result message)
+    const myStackTT = ({"0":"boss","180":"none","45":"stack","315":"stack",
+               "90":"cone","270":"cone","135":"defam","225":"defam"})[currentQ.shuffleMap[currentRole]];
+    if(myStackTT==="cone") showTip('p5stack');
+    setFb("neutral","");
+    p5Step++;
+    updateP5StepLabel();
+    showP5Panel();
+  } else {
+    wipes++; updateScore();
+    setFb('wrong','&#10007; <strong>WIPE.</strong><div class="explain">Wrong stack position. The raid wiped. Click Reset to try again.</div>');
+    markPhaseN(5,"failed");
+    lockNewQuestion();
+  }
+}
+
+function movePlayersToStack(clickedSpot){
+  const ring = document.getElementById("roleHighlight");
+  ALL_ROLES.forEach(role => {
+    const el = document.getElementById("pi_"+role);
+    if(!el) return;
+    const destKey = (role === currentRole) ? clickedSpot : getP5StackSpotForRole(role);
+    const dest = P5_STACK_TARGETS[destKey];
+    if(!dest) return;
+    const def = playerIconPos[role];
+    const m = (el.style.transform||"").match(/translate\(([^,]+)px,\s*([^)]+)px\)/);
+    const curDx = m ? parseFloat(m[1]) : 0;
+    const curDy = m ? parseFloat(m[2]) : 0;
+    const jx = jitter(), jy = jitter();
+    const newDx = curDx + (dest.cx - (def.cx+curDx)) + jx;
+    const newDy = curDy + (dest.cy - (def.cy+curDy)) + jy;
+    el.style.transform = "translate("+newDx+"px,"+newDy+"px)";
+    if(role===currentRole && ring){
+      ring.setAttribute("cx", dest.cx+jx);
+      ring.setAttribute("cy", dest.cy+jy);
+    }
+  });
+  // Redraw remaining (stack + cone) tethers to follow players
+  setTimeout(() => redrawRemainingTethers(), 650);
+}
+
+function redrawRemainingTethers(){
+  const bLayer = document.getElementById("bossCloneLayer");
+  if(!bLayer) return;
+  const ns = "http://www.w3.org/2000/svg";
+  // Remove all existing tether lines
+  bLayer.querySelectorAll("line").forEach(l => l.remove());
+  const tTypeMap = {"0":"boss","180":"none","45":"stack","315":"stack",
+                    "90":"cone","270":"cone","135":"defam","225":"defam"};
+  // Redraw stack and cone tethers only (defam + boss already resolved)
+  BOSS_CLONE_ANGLES.forEach(angle => {
+    const cloneType = p3BossTetherMap[angle];
+    if(cloneType !== "stack" && cloneType !== "cone") return;
+    // Find which role is tethered to this clone via P3 correct spot logic
+    const role = ALL_ROLES.find(r => {
+      const ca = currentQ.shuffleMap[r];
+      const tt = tTypeMap[ca];
+      if(tt !== cloneType) return false;
+      const lp2 = angleLightParty[ca];
+      const matching = BOSS_CLONE_ANGLES.filter(a => p3BossTetherMap[a]===tt);
+      const ccwO = ["315","270","225","135","90","45"];
+      const cwO  = ["45","90","135","225","270","315"];
+      const ord  = lp2==="1" ? ccwO : cwO;
+      return (ord.find(a=>matching.includes(a))||matching[0]) === angle;
+    });
+    if(!role) return;
+    const cp = BOSS_CLONE_SVG[angle];
+    const pp = getPlayerSVGPos(role);
+    const line = document.createElementNS(ns,"line");
+    line.setAttribute("x1",cp.cx); line.setAttribute("y1",cp.cy);
+    line.setAttribute("x2",pp.cx); line.setAttribute("y2",pp.cy);
+    line.setAttribute("stroke","#cc3333");
+    line.setAttribute("stroke-width","2");
+    line.setAttribute("opacity","1");
+    bLayer.insertBefore(line, bLayer.firstChild);
+  });
+}
+
+function getCloneRolesForType(tType){
+  // Returns [{role, cloneAngle}] for roles whose P3 correct boss clone is of this tType
+  const tTypeMap = {"0":"boss","180":"none","45":"stack","315":"stack",
+                    "90":"cone","270":"cone","135":"defam","225":"defam"};
+  const result = [];
+  BOSS_CLONE_ANGLES.forEach(angle => {
+    if(p3BossTetherMap[angle] !== tType) return;
+    const role = ALL_ROLES.find(r => {
+      const ca = currentQ.shuffleMap[r];
+      const tt = tTypeMap[ca];
+      if(tt !== tType) return false;
+      const lp2 = angleLightParty[ca];
+      const matching = BOSS_CLONE_ANGLES.filter(a => p3BossTetherMap[a]===tType);
+      const ccwO=["315","270","225","135","90","45"], cwO=["45","90","135","225","270","315"];
+      const ord = lp2==="1" ? ccwO : cwO;
+      return (ord.find(a=>matching.includes(a))||matching[0]) === angle;
+    });
+    if(role) result.push({role, cloneAngle: angle});
+  });
+  return result;
+}
+
+function animateMovingClones(tType, onArrival){
+  // Generic: animate boss clones of tType moving to their tethered players
+  const animLayer = getOrCreateAnimLayer();
+  const ns = "http://www.w3.org/2000/svg";
+  const bLayer = document.getElementById("bossCloneLayer");
+  const pairs = getCloneRolesForType(tType);
+
+  // Remove tether lines + original clone groups immediately
+  pairs.forEach(({cloneAngle}) => {
+    const cp = BOSS_CLONE_SVG[cloneAngle];
+    if(!bLayer) return;
+    bLayer.querySelectorAll("line").forEach(l => {
+      if(Math.abs(parseFloat(l.getAttribute("x1"))-cp.cx)<2 &&
+         Math.abs(parseFloat(l.getAttribute("y1"))-cp.cy)<2) l.remove();
+    });
+    bLayer.querySelectorAll("g").forEach(g => {
+      const c = g.querySelector("circle");
+      if(c && Math.abs(parseFloat(c.getAttribute("cx"))-cp.cx)<2 &&
+               Math.abs(parseFloat(c.getAttribute("cy"))-cp.cy)<2) g.remove();
+    });
+  });
+
+  // Create animated clones
+  const movers = [];
+  pairs.forEach(({role, cloneAngle}) => {
+    const startPos = BOSS_CLONE_SVG[cloneAngle];
+    const endPos   = getPlayerSVGPos(role);
+    const g = document.createElementNS(ns,"g");
+    g.style.pointerEvents = "none";
+    g.style.transformOrigin = startPos.cx+"px "+startPos.cy+"px";
+    const c = document.createElementNS(ns,"circle");
+    c.setAttribute("cx",startPos.cx); c.setAttribute("cy",startPos.cy);
+    c.setAttribute("r","13"); c.setAttribute("fill","#1a0808");
+    c.setAttribute("stroke","#cc3333"); c.setAttribute("stroke-width","2");
+    c.setAttribute("stroke-dasharray","4 3");
+    g.appendChild(c);
+    animLayer.appendChild(g);
+    movers.push({g, startPos, endPos, role});
+  });
+
+  requestAnimationFrame(() => {
+    movers.forEach(({g, startPos, endPos}) => {
+      g.style.transition = "transform 0.7s ease-in-out";
+      g.style.transform = "translate("+(endPos.cx-startPos.cx)+"px,"+(endPos.cy-startPos.cy)+"px)";
+    });
+  });
+
+  setTimeout(() => onArrival(animLayer, ns, movers), 750);
+}
+
+function animateStackResolution(onDone){
+  animateMovingClones("stack", (animLayer, ns, movers) => {
+    // AOE circle r=38 on each stack player
+    movers.forEach(({endPos}) => {
+      const circle = document.createElementNS(ns,"circle");
+      circle.setAttribute("cx",endPos.cx); circle.setAttribute("cy",endPos.cy);
+      circle.setAttribute("r","38");
+      circle.setAttribute("fill","#cc1111"); circle.setAttribute("opacity","0.5");
+      circle.setAttribute("class","p5-cone");
+      animLayer.appendChild(circle);
+    });
+    setTimeout(() => fadeCones(animLayer, onDone), 2000);
+  });
+}
+
+function animateConeResolution(onDone){
+  // Randomly decide boss facing direction for step 5
+  p5BossFacing = Math.random() < 0.5 ? 135 : 225;
+
+  animateMovingClones("cone", (animLayer, ns, movers) => {
+    // Rotate boss indicator to face p5BossFacing (gap moves from south to new facing)
+    // Boss arc gap default at south (180deg). Rotate: 135 = -45deg, 225 = +45deg
+    const bossInd = document.getElementById("p5BossIndicator");
+    if(bossInd){
+      const rotDeg = p5BossFacing === 135 ? -45+180 : 45+180;
+      const bossPos = getBossTetherPlayerPos();
+      bossInd.style.transition = "transform 0.8s ease-in-out";
+      const existM = (bossInd.style.transform||"").match(/translate\(([^,]+)px,\s*([^)]+)px\)/);
+      const existDx = existM ? parseFloat(existM[1]) : 0;
+      const existDy = existM ? parseFloat(existM[2]) : 0;
+      bossInd.style.transform = "translate("+existDx+"px,"+existDy+"px) rotate("+rotDeg+"deg)";
+    }
+
+    // Cones from each cone player toward true north
+    movers.forEach(({endPos}) => {
+      const targetX = 250, targetY = 22;
+      const dx = targetX - endPos.cx;
+      const dy = targetY - endPos.cy;
+      const baseAngle = Math.atan2(dy, dx);
+      const halfRad   = (45/2) * Math.PI / 180;
+      const coneLen   = 300;
+      const lx = endPos.cx + coneLen * Math.cos(baseAngle - halfRad);
+      const ly = endPos.cy + coneLen * Math.sin(baseAngle - halfRad);
+      const rx = endPos.cx + coneLen * Math.cos(baseAngle + halfRad);
+      const ry = endPos.cy + coneLen * Math.sin(baseAngle + halfRad);
+      const poly = document.createElementNS(ns,"polygon");
+      poly.setAttribute("points",endPos.cx+","+endPos.cy+" "+lx+","+ly+" "+rx+","+ry);
+      poly.setAttribute("fill","#cc1111"); poly.setAttribute("opacity","0.55");
+      poly.setAttribute("class","p5-cone");
+      animLayer.appendChild(poly);
+    });
+
+    // Show red warning tip about boss facing — only for cone players
+    // Boss rotation warning shows for everyone
+    showTip("p5cone");
+
+    setTimeout(() => fadeCones(animLayer, onDone), 2000);
+  });
+}
+
+function animateDodgeBoss(onDone){
+  // Boss is at n_mid = cx:250, cy:105 (P4_DEST_SVG["n_mid"])
+  // Behind = opposite of facing direction, r=40 from boss (tight cluster)
+  const bossCx = 250, bossCy = 105;
+  const behindDir = p5BossFacing === 135 ? 315 : 45;
+  const r = 40;
+  const rad = (behindDir - 90) * Math.PI / 180;
+  const clusterCx = bossCx + r * Math.cos(rad);
+  const clusterCy = bossCy + r * Math.sin(rad);
+
+  const ring = document.getElementById("roleHighlight");
+  ALL_ROLES.forEach(role => {
+    const el = document.getElementById("pi_"+role);
+    if(!el) return;
+    const def = playerIconPos[role];
+    const m = (el.style.transform||"").match(/translate\(([^,]+)px,\s*([^)]+)px\)/);
+    const curDx = m ? parseFloat(m[1]) : 0;
+    const curDy = m ? parseFloat(m[2]) : 0;
+    const jx = jitter(), jy = jitter();
+    const newDx = curDx + (clusterCx - (def.cx+curDx)) + jx;
+    const newDy = curDy + (clusterCy - (def.cy+curDy)) + jy;
+    el.style.transform = "translate("+newDx+"px,"+newDy+"px)";
+    if(role===currentRole && ring){
+      ring.setAttribute("cx", clusterCx+jx);
+      ring.setAttribute("cy", clusterCy+jy);
+    }
+  });
+
+  // After players move, animate the cleave rectangle then call onDone
+  setTimeout(() => {
+    const animLayer = getOrCreateAnimLayer();
+    const ns = "http://www.w3.org/2000/svg";
+    // Cleave: wide rectangle from boss forward in facing direction
+    // Width 460 (wider than arena), length 350 (covers arena)
+    const facingRad = (p5BossFacing - 90) * Math.PI / 180;
+    const perpRad   = facingRad + Math.PI / 2;
+    const halfW     = 230, len = 350;
+    const b1x = bossCx + halfW * Math.cos(perpRad),  b1y = bossCy + halfW * Math.sin(perpRad);
+    const b2x = bossCx - halfW * Math.cos(perpRad),  b2y = bossCy - halfW * Math.sin(perpRad);
+    const t1x = bossCx + len * Math.cos(facingRad) + halfW * Math.cos(perpRad);
+    const t1y = bossCy + len * Math.sin(facingRad) + halfW * Math.sin(perpRad);
+    const t2x = bossCx + len * Math.cos(facingRad) - halfW * Math.cos(perpRad);
+    const t2y = bossCy + len * Math.sin(facingRad) - halfW * Math.sin(perpRad);
+    const pts = b1x.toFixed(1)+","+b1y.toFixed(1)+" "+
+                t1x.toFixed(1)+","+t1y.toFixed(1)+" "+
+                t2x.toFixed(1)+","+t2y.toFixed(1)+" "+
+                b2x.toFixed(1)+","+b2y.toFixed(1);
+    const cleave = document.createElementNS(ns,"polygon");
+    cleave.setAttribute("points", pts);
+    cleave.setAttribute("fill","#cc1111");
+    cleave.setAttribute("opacity","0.55");
+    cleave.setAttribute("class","p5-cone");
+    animLayer.appendChild(cleave);
+    // (No boss circle AoE — cleave is rectangle only)
+    setTimeout(() => fadeCones(animLayer, onDone), 2000);
+  }, 800);
+}
+
+function clearP5Anim(){
+  _animGen++; // cancel any in-flight fade timeouts
+  const layer = document.getElementById("p5AnimLayer");
+  if(layer) layer.innerHTML = "";
+  // Reset boss indicator position
+  const bi = document.getElementById("p5BossIndicator");
+  if(bi){ bi.style.transition="none"; bi.style.transform=""; bi.style.rotate=""; }
+  // Reset button handler back to P5
+  const btn = document.getElementById("p5NextBtn");
+  if(btn) btn.onclick = p5PlayNext;
+  hideP5Panel();
+  p5Step = 0;
+}
+
+// ── Progress 6 ───────────────────────────────────────────────────
+// 5 target positions near boss (back at center for P6)
+const P6_TARGETS = {
+  "north_stack":  { px:50.00, py:12.00, cx:250.0, cy:60.0  },  // north of boss
+  "melee_left":   { px:40.00, py:21.00, cx:200.0, cy:105.0 },  // left max melee
+  "melee_right":  { px:60.00, py:21.00, cx:300.0, cy:105.0 },  // right max melee
+  "inner_left":   { px:45.60, py:21.00, cx:228.0, cy:105.0 },  // inner left
+  "inner_right":  { px:54.40, py:21.00, cx:272.0, cy:105.0 },  // inner right
+};
+
+const P6_SPOT_LABELS = {
+  "north_stack": "North stack (behind boss)",
+  "melee_left":  "Max melee left",
+  "melee_right": "Max melee right",
+  "inner_left":  "Inner arc left",
+  "inner_right": "Inner arc right",
+};
+
+let p6CorrectSpot = "";
+
+function getP6SpotForRole(role){
+  const ca = currentQ.shuffleMap[role];
+  const lp = angleLightParty[ca];
+  const tt = {"0":"boss","180":"none","45":"stack","315":"stack",
+              "90":"cone","270":"cone","135":"defam","225":"defam"}[ca];
+  // LP1 = W side, LP2 = E side
+  // Cone = farthest from boss (max melee = outside outer arc)
+  // Stack = closest to boss (inner arc)
+  // LP1 cone  → melee_left  (W, far)
+  // LP1 stack → inner_left  (W, close)
+  // LP2 cone  → melee_right (E, far)
+  // LP2 stack → inner_right (E, close)
+  // everyone else → north_stack
+  if(tt==="cone")  return lp==="1" ? "melee_left"  : "melee_right";
+  if(tt==="stack") return lp==="1" ? "inner_left"  : "inner_right";
+  return "north_stack";
+}
+
+function buildP6Targets(){
+  const wrap = document.getElementById("arenaWrap");
+  wrap.querySelectorAll(".p6-target").forEach(e=>e.remove());
+  for(const [key, pos] of Object.entries(P6_TARGETS)){
+    const btn = document.createElement("button");
+    btn.className = "target-box p6-target";
+    btn.dataset.spot = key;
+    btn.style.left = pos.px+"%";
+    btn.style.top  = pos.py+"%";
+    btn.onclick = () => answerP6(key);
+    wrap.appendChild(btn);
+  }
+}
+function showP6Targets(){
+  document.querySelectorAll(".p6-target").forEach(b=>{ b.classList.remove("hidden"); b.disabled=false; });
+}
+function hideP6Targets(){
+  document.querySelectorAll(".p6-target").forEach(b=>b.classList.add("hidden"));
+}
+
+function moveAllPlayersP6(clickedSpot){
+  const ring = document.getElementById("roleHighlight");
+  ALL_ROLES.forEach(role => {
+    const el = document.getElementById("pi_"+role);
+    if(!el) return;
+    const destKey = (role===currentRole) ? clickedSpot : getP6SpotForRole(role);
+    const dest = P6_TARGETS[destKey];
+    if(!dest) return;
+    const def = playerIconPos[role];
+    const m = (el.style.transform||"").match(/translate\(([^,]+)px,\s*([^)]+)px\)/);
+    const curDx = m ? parseFloat(m[1]) : 0;
+    const curDy = m ? parseFloat(m[2]) : 0;
+    // No jitter — positions need to be precise for Netherwrath
+    const newDx = dest.cx - def.cx;
+    const newDy = dest.cy - def.cy;
+    el.style.transform = "translate("+newDx+"px,"+newDy+"px)";
+    if(role===currentRole && ring){
+      ring.setAttribute("cx", dest.cx);
+      ring.setAttribute("cy", dest.cy);
+    }
+  });
+}
+
+function answerP6(spot){
+  hideP6Targets();
+  const ok = (spot === p6CorrectSpot);
+  moveAllPlayersP6(spot);
+  if(ok){
+    setFb("correct","&#10003; <strong>Correct!</strong><div class=\"explain\">You are in the right position for Netherwrath. The player clones will now reenact the tethers.</div>");
+    showTip("p6");
+    markPhaseN(6,"done");
+    unlockNewQuestion();
+  } else {
+    wipes++; updateScore();
+    setAnimating(false);
+    setFb("wrong","&#10007; <strong>WIPE.</strong><div class=\"explain\">Wrong position (in front of boss) — you went to <strong>"+(P6_SPOT_LABELS[spot]||spot)+"</strong> but should have gone to <strong>"+P6_SPOT_LABELS[p6CorrectSpot]+"</strong>. The raid wiped. Click Reset to try again.</div>");
+    markPhaseN(6,"failed");
+    lockNewQuestion();
+  }
+}
+
+// ── Progress 7 — Clone reenactment animations ────────────────────
+let p7Step = 0;
+const P7_STEPS = 4;
+const P7_LABELS = [
+  "E & W — Cones + Netherwrath",
+  "SE & NW — Stack + Defam",
+  "S & N — Boss Stomp Echo",
+  "NE & SW — Stack + Defam",
+];
+
+// Clone positions (r=175 outer ring) by angle
+// Step 1: E(90°) W(270°) — cones
+// Step 2: SE(135°) NW(315°) — stack+defam
+// Step 3: S(180°) N(0°) — stomp echo
+// Step 4: NE(45°) SW(225°) — stack+defam
+const P7_STEP_ANGLES = [
+  ["90","270"],
+  ["135","315"],
+  ["180","0"],
+  ["45","225"],
+];
+
+function showP7Panel(){
+  updateP7Label();
+  const panel = document.getElementById("p5Panel"); // reuse P5 panel
+  if(panel) panel.classList.add("visible");
+  document.getElementById("p5NextBtn").disabled = false;
+  document.getElementById("p5NextBtn").onclick = p7PlayNext;
+}
+
+function updateP7Label(){
+  const el = document.getElementById("p5StepLabel");
+  if(el) el.textContent = "Step "+(p7Step+1)+" of "+P7_STEPS+" — "+(P7_LABELS[p7Step]||"");
+}
+
+function p7PlayNext(){
+  document.getElementById("p5NextBtn").disabled = true;
+  setAnimating(true);
+  hideTip();
+  if(p7Step < P7_STEPS){
+    animateP7Step(p7Step, () => {
+      p7Step++;
+      if(p7Step < P7_STEPS){
+        updateP7Label();
+        document.getElementById("p5NextBtn").disabled = false;
+      } else {
+        // All done — win counted here only
+        const panel = document.getElementById("p5Panel");
+        if(panel) panel.classList.remove("visible");
+        markPhaseN(7,"done");
+        wins++; updateScore();
+        setAnimating(false);
+        lockNewQuestion(); // only Reset or role change available at end
+        setSit("Mechanic complete! Well done. Press Reset or change your role to practice again.");
+        setFb("correct","&#10003; <strong>Complete!</strong><div class=\"explain\">You have successfully memorised the Banana Codex mechanic. Great job!</div>");
+      }
+    });
+  }
+}
+
+// ── P7 player position tracking ──────────────────────────────────
+// After P6, players are at these SVG positions:
+//   N group (boss/none/defam) → north_stack: 250,60
+//   LP1 cone                  → melee_left:  200,105
+//   LP2 cone                  → melee_right: 300,105
+//   LP1 stack                 → inner_left:  228,105
+//   LP2 stack                 → inner_right: 272,105
+// We track current positions in p7PlayerPos map
+let p7PlayerPos = {}; // role → {cx,cy}
+
+function initP7PlayerPos(){
+  ALL_ROLES.forEach(role => {
+    const key = getP6SpotForRole(role);
+    const dest = P6_TARGETS[key];
+    if(dest) p7PlayerPos[role] = {cx:dest.cx, cy:dest.cy};
+  });
+}
+
+function movePlayerP7(role, cx, cy){
+  const el = document.getElementById("pi_"+role);
+  if(!el) return;
+  const def = playerIconPos[role];
+  const jx = jitter(), jy = jitter();
+  const newDx = cx - def.cx + jx;
+  const newDy = cy - def.cy + jy;
+  el.style.transform = "translate("+newDx+"px,"+newDy+"px)";
+  p7PlayerPos[role] = {cx: cx+jx, cy: cy+jy};
+  const ring = document.getElementById("roleHighlight");
+  if(ring && role===currentRole){
+    ring.setAttribute("cx", cx+jx);
+    ring.setAttribute("cy", cy+jy);
+  }
+}
+
+function addAoE(layer, ns, cx, cy, r, opacity){
+  const c = document.createElementNS(ns,"circle");
+  c.setAttribute("cx",cx); c.setAttribute("cy",cy); c.setAttribute("r",r);
+  c.setAttribute("fill","#cc1111"); c.setAttribute("opacity",opacity||"0.5");
+  c.setAttribute("class","p5-cone");
+  layer.appendChild(c);
+}
+
+function addCone(layer, ns, fromX, fromY, toX, toY, halfDeg, len){
+  const base = Math.atan2(toY-fromY, toX-fromX);
+  const half = halfDeg*Math.PI/180;
+  const lx=fromX+len*Math.cos(base-half), ly=fromY+len*Math.sin(base-half);
+  const rx=fromX+len*Math.cos(base+half), ry=fromY+len*Math.sin(base+half);
+  const poly = document.createElementNS(ns,"polygon");
+  poly.setAttribute("points",fromX+","+fromY+" "+lx+","+ly+" "+rx+","+ry);
+  poly.setAttribute("fill","#cc1111"); poly.setAttribute("opacity","0.5");
+  poly.setAttribute("class","p5-cone");
+  layer.appendChild(poly);
+}
+
+function removeClone(angle){
+  // Hide the player clone circle at this angle on the clone SVG overlay
+  const layer = document.getElementById("cloneLayer");
+  if(!layer) return;
+  const node = layer.querySelector("[data-angle=\""+angle+"\"]");
+  if(node) node.setAttribute("opacity","0");
+}
+
+function getRolesAtSpot(spotKey){
+  return ALL_ROLES.filter(r => getP6SpotForRole(r)===spotKey);
+}
+
+function getRolesByTether(tt){
+  const tTypeMap={"0":"boss","180":"none","45":"stack","315":"stack",
+                  "90":"cone","270":"cone","135":"defam","225":"defam"};
+  return ALL_ROLES.filter(r=>tTypeMap[currentQ.shuffleMap[r]]===tt);
+}
+
+function animateP7Step(stepIdx, onDone){
+  const animLayer = getOrCreateAnimLayer();
+  const ns = "http://www.w3.org/2000/svg";
+
+  // CLONE_SVG positions (r=175)
+  const CS = CLONE_SVG;
+  // Fan positions (where cone/stack returned to in P5)
+  const FAN = P4_DEST_SVG;
+
+  if(stepIdx===0){
+    // ── Step 1: E&W cones fire + netherwrath on side players ──────
+    // No clone movement. E(90°) and W(270°) clones fire cones inward then disappear.
+    // Netherwrath hits the two outer (cone) and two inner (stack) side players.
+    setFb("neutral","<strong>Step 1:</strong> E &amp; W player clones fire their cones. Netherwrath hits the side players. Stay in position!");
+
+    // Cones from E and W clones pointing inward
+    ["90","270"].forEach(angle => {
+      const sp = CS[angle];
+      addCone(animLayer, ns, sp.cx, sp.cy, 250, 250, 22.5, 320);
+    });
+
+    // Netherwrath: only 2 circles — randomly either the two outer (melee) or two inner (stack) players
+    const nwSpots = Math.random()<0.5
+      ? ["melee_left","melee_right"]
+      : ["inner_left","inner_right"];
+    nwSpots.forEach(spot=>{
+      const dest = P6_TARGETS[spot];
+      addAoE(animLayer, ns, dest.cx, dest.cy, 25, "0.5");
+    });
+
+    setTimeout(() => {
+      // E and W clones disappear after firing
+      removeClone("90"); removeClone("270");
+      fadeCones(animLayer, () => {
+        setAnimating(false);
+        // Role-specific tip
+        const myTT = ({"0":"boss","180":"none","45":"stack","315":"stack",
+                       "90":"cone","270":"cone","135":"defam","225":"defam"})[currentQ.shuffleMap[currentRole]];
+        const isSidePlayer = (myTT==="cone"||myTT==="stack");
+        showTip(isSidePlayer ? "p7s1_side" : "p7s1_north");
+        onDone();
+      });
+    }, 2000);
+
+  } else if(stepIdx===1){
+    // ── Step 2: Side players return to fan positions. N group moves to NW clone. ──
+    // NW clone fires stack. SW clone fires defam.
+    setFb("neutral","<strong>Step 2:</strong> Side players return to fan positions. North group soaks the NW stack.");
+
+    // Identify groups
+    const coneRoles  = getRolesByTether("cone");   // 2 cone players
+    const stackRoles = getRolesByTether("stack");  // 2 stack players
+    const nGroup = ALL_ROLES.filter(r => {
+      const s = getP6SpotForRole(r);
+      return s==="north_stack";
+    });
+
+    // LP1 cone → fan350, LP2 cone → fan20 (same as P4/P5 fan positions)
+    coneRoles.forEach(role=>{
+      const ca=currentQ.shuffleMap[role], lp=angleLightParty[ca];
+      const dest = lp==="1" ? FAN["fan340"] : FAN["fan20"];
+      movePlayerP7(role, dest.cx, dest.cy);
+    });
+    // LP1 stack → fan350, LP2 stack → fan10
+    stackRoles.forEach(role=>{
+      const ca=currentQ.shuffleMap[role], lp=angleLightParty[ca];
+      const dest = lp==="1" ? FAN["fan350"] : FAN["fan10"];
+      movePlayerP7(role, dest.cx, dest.cy);
+    });
+    // N group (north_stack roles) move to NW clone position
+    const nwPos = CS["315"]; // cx=126, cy=126
+    nGroup.forEach(role=> movePlayerP7(role, nwPos.cx, nwPos.cy));
+
+    // After movement, NW fires stack AoE, SW fires defam AoE
+    setTimeout(() => {
+      addAoE(animLayer, ns, CS["315"].cx, CS["315"].cy, 38, "0.5");   // NW stack
+      addAoE(animLayer, ns, CS["225"].cx, CS["225"].cy, 182, "0.3"); // SW defam (full size)
+      setTimeout(() => {
+        removeClone("315"); removeClone("225");
+        fadeCones(animLayer, () => {
+          setAnimating(false);
+          const myTT2 = ({"0":"boss","180":"none","45":"stack","315":"stack",
+                          "90":"cone","270":"cone","135":"defam","225":"defam"})[currentQ.shuffleMap[currentRole]];
+          const isSide2 = (myTT2==="cone"||myTT2==="stack");
+          showTip(isSide2 ? "p7s2_side" : "p7s2_north");
+          onDone();
+        });
+      }, 2000);
+    }, 750);
+
+  } else if(stepIdx===2){
+    // ── Step 3: NW group moves to NE clone. Boss stomp at N clone + fan cones. Echo at S. ──
+    setFb("neutral","<strong>Step 3:</strong> Move to NE clone to soak the stack. Watch out for the boss stomp cones!");
+
+    const nwGroup = ALL_ROLES.filter(r => {
+      const pos = p7PlayerPos[r];
+      return pos && Math.abs(pos.cx - CS["315"].cx)<30 && Math.abs(pos.cy - CS["315"].cy)<30;
+    });
+    const nePos = CS["45"]; // cx=374, cy=126
+    nwGroup.forEach(role => movePlayerP7(role, nePos.cx, nePos.cy));
+
+    setTimeout(() => {
+      // Boss stomp: N clone (cx=250,cy=75) fires narrow cones toward fan positions
+      const nPos = CS["0"];
+      [FAN["fan10"],FAN["fan20"],FAN["fan340"],FAN["fan350"]].forEach(fp=>{
+        addCone(animLayer, ns, nPos.cx, nPos.cy, fp.cx, fp.cy, 8, 300);
+      });
+      // Boss stomp circle at N clone
+      addAoE(animLayer, ns, nPos.cx, nPos.cy, 38, "0.5");
+      // Echo at S clone
+      addAoE(animLayer, ns, CS["180"].cx, CS["180"].cy, 60, "0.4");
+
+      setTimeout(() => {
+        removeClone("0"); removeClone("180"); removeClone("135");
+        fadeCones(animLayer, () => {
+          setAnimating(false);
+          const myTT3 = ({"0":"boss","180":"none","45":"stack","315":"stack",
+                          "90":"cone","270":"cone","135":"defam","225":"defam"})[currentQ.shuffleMap[currentRole]];
+          if(myTT3!=="cone" && myTT3!=="stack") showTip("p7s3");
+          onDone();
+        });
+      }, 2000);
+    }, 750);
+
+  } else if(stepIdx===3){
+    // ── Step 4: NE fires stack. SW fires defam. Players already in position. ──
+    setFb("neutral","<strong>Step 4:</strong> NE clone fires the final stack. SW clone fires the last defam. Hold your position!");
+
+    addAoE(animLayer, ns, CS["45"].cx,  CS["45"].cy,  38, "0.5");  // NE stack
+    addAoE(animLayer, ns, CS["225"].cx, CS["225"].cy, 182, "0.3"); // SW defam (full size)
+
+    setTimeout(() => {
+      removeClone("45"); removeClone("225");
+      fadeCones(animLayer, () => {
+        setAnimating(false);
+        const myTT4 = ({"0":"boss","180":"none","45":"stack","315":"stack",
+                        "90":"cone","270":"cone","135":"defam","225":"defam"})[currentQ.shuffleMap[currentRole]];
+        if(myTT4==="cone") showTip("p7s3");
+        onDone();
+      });
+    }, 2000);
   }
 }
 
@@ -1124,7 +2183,7 @@ function bossCloneSymbol(ns, cx, cy, type){
     const pts = `${cx},${cy-7} ${cx-6},${cy+5} ${cx+6},${cy+5}`;
     const tri = document.createElementNS(ns,"polygon");
     tri.setAttribute("points",pts); tri.setAttribute("fill","none");
-    tri.setAttribute("stroke","#a78bfa"); tri.setAttribute("stroke-width","1.5");
+    tri.setAttribute("stroke","#cc1111"); tri.setAttribute("stroke-width","1.5");
     g.appendChild(tri);
   }
   return g;
@@ -1378,6 +2437,7 @@ function answerP3(spot){
   } else {
     wipes++;
     updateScore();
+    setAnimating(false);
     setFb("wrong",`✗ <strong>WIPE.</strong><div class="explain">You went to <strong>${spotName}</strong> but should have gone to <strong>${correctName}</strong>. The raid wiped. Click Reset to try again.</div>`);
     markPhaseN(3,"failed");
     lockNewQuestion();
@@ -1526,6 +2586,33 @@ function newQuestion(){
     showP4Targets();
     p4CorrectSpot = getP4SpotForRole(currentRole);
     setSit(`As we wait for the tether to finalize, think about where to go next. As <strong>${currentRole}</strong>, which position should you move to?`);
+    return;
+  } else if(questionNum===5){
+    setActivePhaseN(5);
+    clearP5Anim();
+    // Reset boss indicator to face north
+    const bi = document.getElementById("p5BossIndicator");
+    if(bi){ bi.style.transition="none"; bi.style.transform=""; }
+    setSit(`All the boss clones and the main boss are about to release their moves on their tethered players. The order is: <strong>Boss Stomp</strong> → <strong>Defam + Stomp Echo</strong> → <strong>Stacks</strong> → <strong>Cones</strong>. Watch the animations below.`);
+    showP5Panel();
+    return;
+  } else if(questionNum===6){
+    setActivePhaseN(6);
+    // Reset boss indicator to center facing north for P6
+    // Boss stays at n_mid, reset rotation to face north (gap at south = default)
+    const bi6 = document.getElementById("p5BossIndicator");
+    if(bi6){ bi6.style.transition="transform 0.5s ease"; const m6=(bi6.style.transform||'').match(/translate\(([^,]+)px,\s*([^)]+)px\)/); const dx6=m6?parseFloat(m6[1]):0; const dy6=m6?parseFloat(m6[2]):0; bi6.style.transform="translate("+dx6+"px,"+dy6+"px)"; }
+    buildP6Targets();
+    showP6Targets();
+    p6CorrectSpot = getP6SpotForRole(currentRole);
+    setSit(`The player clones are about to reenact all the tethers. Before they do, <strong>Netherwrath</strong> is casting — banana codex cheeses this. As <strong>${currentRole}</strong>, where do you position?`);
+    return;
+  } else if(questionNum===7){
+    setActivePhaseN(7);
+    p7Step = 0;
+    initP7PlayerPos();
+    showP7Panel();
+    setSit(`The player clones will execute in this order: <strong>E &amp; W</strong> (cones + Netherwrath) → <strong>SE &amp; NW</strong> (stack + defam) → <strong>S &amp; N</strong> (boss stomp echo) → <strong>NE &amp; SW</strong> (stack + defam). Watch each animation.`);
     return;
   }
 
