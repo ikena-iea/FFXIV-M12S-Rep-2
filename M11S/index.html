@@ -1,0 +1,1198 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="og:title" content="M11S Split Arena" />
+    <title>M11S Quiz Time!</title>
+
+    <script src="quizFunctions.js"></script>
+    <link rel="stylesheet" href="quizStyles.css" />
+
+    <style>
+      /* Page-Specific Styles Go Here */
+      @keyframes resolveAoE {
+        0% {
+          opacity: 0;
+        }
+        15% {
+          opacity: 1;
+        }
+        85% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 0;
+        }
+      }
+
+      .resolveAoE {
+        animation: resolveAoE 5s;
+        animation-delay: 1s;
+        animation-fill-mode: both;
+      }
+
+      .resolveSpread {
+        animation: resolveAoE 4s;
+        animation-delay: 1.5s;
+        animation-fill-mode: both;
+      }
+
+      .aoeMarker {
+        opacity: 0;
+      }
+
+      .spreadMarker {
+        opacity: 0;
+      }
+
+      .castMeter {
+        display: block;
+        height: 100%;
+        background-color: gold;
+        animation: castMeterFill 20s ease-in-out;
+      }
+
+      .castText {
+        position: relative;
+        display: inline;
+        top: -40px;
+        font-weight: bold;
+        color: orange;
+        /* cursor: pointer; */
+        transition:
+          left 0.5s ease,
+          top 0.5s ease,
+          transform 0.5s ease;
+        height: 20px;
+        width: 200px;
+      }
+    </style>
+
+    <script>
+      //Set globals here
+      const playerIds = ["p0", "p1", "p2", "p3", "p4", "p5", "p6", "p7"];
+      const meleePlayers = [0, 2, 4, 6];
+      const towerPosIds = ["t0", "t1", "t2", "t3"];
+      const baitPosIds = ["t0", "t1"];
+      const finalPosIds = ["t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7"];
+      // Persistent cycle state
+      let tetherCycle = null;
+      const mate = { 0: 4, 4: 0, 1: 7, 7: 1, 2: 6, 6: 2, 3: 5, 5: 3 };
+
+      var win = 0;
+      var lose = 0;
+      var storedChoice = 0;
+
+      var inOut = true; // left gates in, right gates out
+      var leftRight = true; // bottom gates left, bottom gates right
+      var selectedChar = 0; // MT-R2-M2-H2-OT-H1-M1-R1
+      var step = 0; //0 = Tower Spot, 1 = Bait Spot, 2 = Final Spot, 3 = Tower Spot, 4 = Bait Spot, 5 = Final Spot, 6 = Tower Spot, 7 = Complete/Wipe
+      var killed = false;
+      var leftParty = [0, 5, 6, 7];
+      var rightParty = [1, 2, 3, 4];
+
+      var pairs = [
+        [0, 7],
+        [5, 6],
+        [1, 4],
+        [2, 3],
+      ]; // [top-left, bottom-left, top-right, bottom-right]
+
+      var tetherPlayersDest = [-1, -1, -1, -1];
+      var queueMovement = [];
+
+      var towerPositions = [
+        [
+          [194, 250], // top-left-stay
+          [250, 205], // top-left-cross
+          [194, 495], // bot-left-stay
+          [250, 540], // bot-left-cross
+        ],
+        [
+          [794, 250], // top-right-stay
+          [738, 205], // top-right-cross
+          [794, 495], // bot-right-stay
+          [738, 540], // bot-right-cross
+        ],
+      ];
+
+      var baitPositions = [
+        [
+          [294, 375], // left far
+          [350, 375], // left close
+        ],
+        [
+          [610, 375], // right close
+          [666, 375], // right far
+        ],
+      ];
+
+      var finalPositions = [
+        [
+          [164, 10], // top-left-edge-left
+          [205, 10], // top-left-edge-right
+          [164, 150], // top-left-marker-left
+          [205, 150], // top-left-marker-right
+          [164, 735], // bot-left-edge-left
+          [205, 735], // bot-left-edge-right
+          [164, 595], // bot-left-marker-left
+          [205, 595], // bot-left-marker-right
+        ],
+        [
+          [755, 10], // top-right-edge-left
+          [796, 10], // top-right-edge-right
+          [755, 150], // top-right-marker-left
+          [796, 150], // top-right-marker-right
+          [755, 735], // bot-right-edge-left
+          [796, 735], // bot-right-edge-right
+          [755, 595], // bot-right-marker-left
+          [796, 595], // bot-right-marker-right
+        ],
+      ];
+    </script>
+  </head>
+
+  <body>
+    <!-- Title Bar -->
+    <div class="titleBar">
+      <!-- Title div -->
+      <div class="scoreCount" style="float: left; background-color: #ccffcc; color: #009900">
+        <h1>WINS</h1>
+        <h2 id="winText">0</h2>
+      </div>
+      <div class="scoreCount" style="float: right; background-color: #ffcccc; color: #990000">
+        <h1>WIPES</h1>
+        <h2 id="loseText">0</h2>
+      </div>
+      <h1>Quiz Time!</h1>
+      <h2>M11S - Arena Split</h2>
+    </div>
+    <!-- End Title Div -->
+
+    <div class="quizContainer">
+      <!-- Content div -->
+      <p style="display: table">
+        It's M11S Time. You're at Arena Split and your party is relying on you to go to the right spot. Do you remember where to go? Click the correct location based on your role and what the mechanic calls for.
+        <br />
+        <br />
+        Change your role by clicking the
+        <strong>role icon</strong>
+        to the left. To reset and start from the beginning, press the green
+        <strong>refresh icon</strong>
+        to the right.
+      </p>
+      <p id="status" class="alert" style="background-color: rgb(255, 153, 204); color: rgb(102, 0, 51)">
+        <strong>[FAIL]</strong>
+        - You've killed yourself and/or a party member. Don't feel bad. This is just for pretend. You'll get it next time, maybe.
+        <br />
+        <em>Note: Wrong baits can still be salvaged if the party can react quickly and swap baits on the fly</em>
+        <br />
+        <br />
+        Press the
+        <strong>reset button</strong>
+        to the right to try again.
+      </p>
+      <div class="quizBlock">
+        <!-- All of the quiz content will be located in here - Override height if needed. -->
+        <!-- Battle Background -->
+        <img src="img/bg.png" id="arena" style="border-radius: 15px; width: 980px" />
+
+        <!-- Tethers -->
+        <svg id="lines"></svg>
+
+        <!-- Gate -->
+        <img id="g1" style="left: 0px; top: 0px; transform: rotate(0deg) scaleX(1)" src="img/gate.png" />
+        <img id="g2" style="left: 0px; bottom: 0px; transform: rotate(0deg) scaleX(1)" src="img/gate.png" />
+        <img id="g3" style="right: 0px; top: 190px; transform: rotate(0deg) scaleX(1)" src="img/gate.png" />
+        <img id="g4" style="right: 0px; bottom: 190px; transform: rotate(0deg) scaleX(1)" src="img/gate.png" />
+        <img id="g5" style="left: 273px; bottom: -73px; transform: rotate(90deg) scaleX(1)" src="img/gate.png" />
+        <img id="g6" style="right: 55px; bottom: -73px; transform: rotate(90deg) scaleX(1)" src="img/gate.png" />
+
+        <!-- Towers -->
+        <img id="tow0" style="left: 100px; top: 110px; width: 200px" src="img/towers.png" />
+        <img id="tow1" style="left: 100px; top: 450px; width: 200px" src="img/towers.png" />
+        <img id="tow2" style="left: 700px; top: 110px; width: 200px" src="img/towers.png" />
+        <img id="tow3" style="left: 700px; top: 450px; width: 200px" src="img/towers.png" />
+
+        <!-- Party -->
+        <img id="p0" class="selected-player" style="left: 463px; top: 112px; transform: rotate(0deg) scaleX(1)" src="img/mt.png" />
+        <img id="p1" style="left: 535px; top: 282px; transform: rotate(0deg) scaleX(1)" src="img/r2.png" />
+        <img id="p2" style="left: 566px; top: 350px; transform: rotate(0deg) scaleX(1)" src="img/m2.png" />
+        <img id="p3" style="left: 560px; top: 447px; transform: rotate(0deg) scaleX(1)" src="img/h2.png" />
+        <img id="p4" style="left: 463px; top: 422px; transform: rotate(0deg) scaleX(1)" src="img/ot.png" />
+        <img id="p5" style="left: 368px; top: 447px; transform: rotate(0deg) scaleX(1)" src="img/h1.png" />
+        <img id="p6" style="left: 358px; top: 350px; transform: rotate(0deg) scaleX(1)" src="img/m1.png" />
+        <img id="p7" style="left: 393px; top: 282px; transform: rotate(0deg) scaleX(1)" src="img/r1.png" />
+
+        <!-- Location Selection Towers-->
+        <img id="t0" style="left: 194px; top: 250px; cursor: pointer" src="img/target.png" onclick="grade(0)" />
+        <img id="t1" style="left: 250px; top: 205px; cursor: pointer" src="img/target.png" onclick="grade(1)" />
+        <img id="t2" style="left: 194px; top: 495px; cursor: pointer" src="img/target.png" onclick="grade(2)" />
+        <img id="t3" style="left: 250px; top: 540px; cursor: pointer" src="img/target.png" onclick="grade(3)" />
+        <img id="t4" style="left: 794px; top: 250px; cursor: pointer" src="img/target.png" onclick="grade(4)" />
+        <img id="t5" style="left: 738px; top: 205px; cursor: pointer" src="img/target.png" onclick="grade(5)" />
+        <img id="t6" style="left: 794px; top: 495px; cursor: pointer" src="img/target.png" onclick="grade(6)" />
+        <img id="t7" style="left: 738px; top: 540px; cursor: pointer" src="img/target.png" onclick="grade(7)" />
+
+        <!-- Menu Images -->
+        <img id="resetImg" style="right: 10px; top: 10px; border-radius: 5px" src="img/reset.png" onclick="setupBoard()" />
+        <img id="roleImg" style="left: 10px; top: 10px; border-radius: 5px" src="img/iconmt.png" onclick="changeRole()" />
+      </div>
+      <p id="gradeBlock" class="grading" style="background-color: rgb(255, 153, 204); color: rgb(102, 0, 51)">Good luck.</p>
+      <div class="next-container">
+        <button id="nextBtn" class="next-btn hidden" onclick="grade()">Next</button>
+      </div>
+      <p class="contact">
+        Credit goes to CupNoodle for the base code. Discord @
+        <strong>realcupnoodle</strong>
+        .
+      </p>
+    </div>
+    <!-- End Content Div -->
+
+    <script>
+      function setupBoard() {
+        //Initialize variables and place everything in an initial configuration
+        leftParty = [0, 5, 6, 7];
+        rightParty = [1, 2, 3, 4];
+        pairs = [
+          [0, 7],
+          [5, 6],
+          [1, 4],
+          [2, 3],
+        ];
+        inOut = Math.random() < 0.5; //true = in (left out, right in), false = out (left out, right in)
+        leftRight = Math.random() < 0.5; //true = left, false = right
+        step = 0; //0 = Tower Spot, 1 = Bait Spot, 2 = Final Spot, 3 = Tower Spot, 4 = Bait Spot, 5 = Final Spot, 6 = Tower Spot, 7 = Complete/Wipe
+        showMarkers(towerPosIds);
+        assignMarkers();
+        showTowers();
+        hideNextButton();
+        queueMovement = new Array();
+
+        playerIds.forEach((player) => {
+          document.getElementById(player).classList.remove("baiting");
+        });
+
+        killed = false;
+        tetherCycle = null;
+
+        //Place starting positions
+        moveImage("p0", 120, 245);
+        moveImage("p1", 770, 200);
+        moveImage("p2", 775, 325);
+        moveImage("p3", 725, 535);
+        moveImage("p4", 795, 440);
+        moveImage("p5", 134, 500);
+        moveImage("p6", 100, 400);
+        moveImage("p7", 200, 250);
+
+        //Place gates
+        if (inOut) {
+          moveImage("g1", -20, 203);
+          moveImage("g2", -20, 406);
+          moveImage("g3", 950, 0);
+          moveImage("g4", 950, 559);
+        } else {
+          moveImage("g1", -20, 0);
+          moveImage("g2", -20, 559);
+          moveImage("g3", 950, 203);
+          moveImage("g4", 950, 406);
+        }
+        if (leftRight) {
+          moveImage("g5", 70, 630, 90);
+          moveImage("g6", 670, 630, 90);
+        } else {
+          moveImage("g5", 270, 630, 90);
+          moveImage("g6", 870, 630, 90);
+        }
+
+        //Assign and place tethers
+        resetTethers();
+        assign4TethersRandom(leftParty, rightParty);
+
+        //Set the initial alert text and grade block
+        setBgAndColor("gradeBlock", "#AAFFAA", "#006600");
+        setBgAndColor("status", "#AAAAFF", "#000066");
+
+        setText("status", "Daddy just split the arena.  Portals and towers spawned.  Towers are about to trigger.  Where do you go?");
+        setText("gradeBlock", "Good luck.");
+      }
+
+      function changeRole() {
+        //Change the role and re-assign markers
+        document.getElementById(`p${selectedChar}`).classList.remove("selected-player");
+        switch (selectedChar) {
+          //We're going to cycle these in a different order to the viewer, so this will require a special order.
+          case 0: //MT
+            selectedChar = 4; //OT
+            changeImage("roleImg", "img/iconot.png");
+            break;
+          case 1: //R2
+            selectedChar = 0; //MT
+            changeImage("roleImg", "img/iconmt.png");
+            break;
+          case 2: //M2
+            selectedChar = 7; //R1
+            changeImage("roleImg", "img/iconr1.png");
+            break;
+          case 3: //H2
+            selectedChar = 6; //M1
+            changeImage("roleImg", "img/iconm1.png");
+            break;
+          case 4: //OT
+            selectedChar = 5; //H1
+            changeImage("roleImg", "img/iconh1.png");
+            break;
+          case 5: //H1
+            selectedChar = 3; //H2
+            changeImage("roleImg", "img/iconh2.png");
+            break;
+          case 6: //M1
+            selectedChar = 2; //M2
+            changeImage("roleImg", "img/iconm2.png");
+            break;
+          case 7: //R1
+            selectedChar = 1; //R2
+            changeImage("roleImg", "img/iconr2.png");
+            break;
+        }
+        document.getElementById(`p${selectedChar}`).classList.add("selected-player");
+        setupBoard();
+      }
+
+      // assign the location of selection markers for test
+      function assignMarkers() {
+        if (step === 0 || step === 6) {
+          if (leftParty.includes(selectedChar)) {
+            let activeSide = towerPositions[0];
+            moveImage("t0", activeSide[0][0], activeSide[0][1]);
+            moveImage("t1", activeSide[1][0], activeSide[1][1]);
+            moveImage("t2", activeSide[2][0], activeSide[2][1]);
+            moveImage("t3", activeSide[3][0], activeSide[3][1]);
+          } else {
+            let activeSide = towerPositions[1];
+            moveImage("t0", activeSide[0][0], activeSide[0][1]);
+            moveImage("t1", activeSide[1][0], activeSide[1][1]);
+            moveImage("t2", activeSide[2][0], activeSide[2][1]);
+            moveImage("t3", activeSide[3][0], activeSide[3][1]);
+          }
+        }
+        if (step === 1 || step === 8) {
+          showMarkers(baitPosIds);
+          if (leftParty.includes(selectedChar)) {
+            let activeSide = baitPositions[0];
+            moveImage("t0", activeSide[0][0], activeSide[0][1]);
+            moveImage("t1", activeSide[1][0], activeSide[1][1]);
+          } else {
+            let activeSide = baitPositions[1];
+            moveImage("t0", activeSide[0][0], activeSide[0][1]);
+            moveImage("t1", activeSide[1][0], activeSide[1][1]);
+          }
+        }
+        if (step === 3 || step === 10) {
+          showMarkers(finalPosIds);
+          if (leftParty.includes(selectedChar)) {
+            let activeSide = finalPositions[0];
+            moveImage("t0", activeSide[0][0], activeSide[0][1]);
+            moveImage("t1", activeSide[1][0], activeSide[1][1]);
+            moveImage("t2", activeSide[2][0], activeSide[2][1]);
+            moveImage("t3", activeSide[3][0], activeSide[3][1]);
+            moveImage("t4", activeSide[4][0], activeSide[4][1]);
+            moveImage("t5", activeSide[5][0], activeSide[5][1]);
+            moveImage("t6", activeSide[6][0], activeSide[6][1]);
+            moveImage("t7", activeSide[7][0], activeSide[7][1]);
+          } else {
+            let activeSide = finalPositions[1];
+            moveImage("t0", activeSide[0][0], activeSide[0][1]);
+            moveImage("t1", activeSide[1][0], activeSide[1][1]);
+            moveImage("t2", activeSide[2][0], activeSide[2][1]);
+            moveImage("t3", activeSide[3][0], activeSide[3][1]);
+            moveImage("t4", activeSide[4][0], activeSide[4][1]);
+            moveImage("t5", activeSide[5][0], activeSide[5][1]);
+            moveImage("t6", activeSide[6][0], activeSide[6][1]);
+            moveImage("t7", activeSide[7][0], activeSide[7][1]);
+          }
+        }
+      }
+
+      async function grade(choice) {
+        if (step === 0 || step === 7) {
+          //Move all the non-players to their correct location.
+          if (selectedChar != 0) placeUnit(0);
+          if (selectedChar != 1) placeUnit(1);
+          if (selectedChar != 2) placeUnit(2);
+          if (selectedChar != 3) placeUnit(3);
+          if (selectedChar != 4) placeUnit(4);
+          if (selectedChar != 5) placeUnit(5);
+          if (selectedChar != 6) placeUnit(6);
+          if (selectedChar != 7) placeUnit(7);
+
+          //Move the selected character to the place they clicked on
+          movePlayerToMarker(choice);
+
+          if (leftParty.includes(selectedChar)) {
+            if (choice === 0) queueMovement.push([selectedChar, "down"]);
+            if (choice === 1) queueMovement.push([selectedChar, "right"]);
+            if (choice === 2) queueMovement.push([selectedChar, "up"]);
+            if (choice === 3) queueMovement.push([selectedChar, "right"]);
+          } else {
+            if (choice === 0) queueMovement.push([selectedChar, "down"]);
+            if (choice === 1) queueMovement.push([selectedChar, "left"]);
+            if (choice === 2) queueMovement.push([selectedChar, "up"]);
+            if (choice === 3) queueMovement.push([selectedChar, "left"]);
+          }
+
+          //Hide markers
+          hideMarkers();
+
+          //Reset the text inside the grade box
+          setText("gradeBlock", "Everybody gets to position.");
+          showNextButton();
+        }
+        if (step === 1 || step === 8) {
+          hideNextButton();
+          const { ok, results } = checkTowersHaveTwoPlayers();
+          console.log(ok, results);
+          // results example: { t0:["p0","p5"], t1:["p1","p4"], ... }
+          if (ok) {
+            // set up waiters FIRST
+            const els = playerIds.map((id) => document.getElementById(id));
+            const waits = els.map((el) => waitForTransition(el));
+            queueMovement.forEach((movement) => {
+              var unitID = "p" + movement[0];
+              if (movement[1] === "right") {
+                shiftImage(unitID, 500, 0);
+              }
+              if (movement[1] === "left") {
+                shiftImage(unitID, -500, 0);
+              }
+              if (movement[1] === "up") {
+                shiftImage(unitID, 0, -300);
+              }
+              if (movement[1] === "down") {
+                shiftImage(unitID, 0, 300);
+              }
+            });
+            hideTowers();
+            await Promise.all(waits);
+            const res = checkFourPerSide("arena", playerIds);
+            console.log(res.ok, res.left, res.right);
+            leftParty = res.left;
+            rightParty = res.right;
+            if (res.ok) {
+              setBgAndColor("status", "#AAFFAA", "#006600");
+              setText("status", "<strong>[PASS]</strong> - You've gone to the location correctly. Now click if you need to get close to the boss or not.");
+              setText("gradeBlock", "Tower triggers and people get knocked to new locations.");
+              assignMarkers();
+            } else {
+              lose++;
+              setBgAndColor("gradeBlock", "#FF99CC", "#660033");
+              setBgAndColor("status", "#FF99CC", "#660033");
+              setText("status", "<strong>[FAIL]</strong> - You messed up because now there are no longer four on each side.");
+              setText("gradeBlock", "Press the refresh icon or change role to start again.");
+              setText("loseText", lose);
+            }
+          } else {
+            lose++;
+            setBgAndColor("gradeBlock", "#FF99CC", "#660033");
+            setBgAndColor("status", "#FF99CC", "#660033");
+            setText("status", "<strong>[FAIL]</strong> - A tower was missed.");
+            setText("gradeBlock", "Press the refresh icon or change role to start again.");
+            setText("loseText", lose);
+          }
+        }
+        if (step === 2 || step === 9) {
+          //Move all the non-players to their correct location.
+          if (selectedChar != 0) placeUnit(0);
+          if (selectedChar != 1) placeUnit(1);
+          if (selectedChar != 2) placeUnit(2);
+          if (selectedChar != 3) placeUnit(3);
+          if (selectedChar != 4) placeUnit(4);
+          if (selectedChar != 5) placeUnit(5);
+          if (selectedChar != 6) placeUnit(6);
+          if (selectedChar != 7) placeUnit(7);
+
+          if (!meleePlayers.includes(selectedChar) && tetherPlayersDest.includes(selectedChar)) {
+            setBgAndColor("status", "#AAAAFF", "#000066");
+            setText("status", "Daddy is about to give the four nearest players baits");
+            setText("gradeBlock", "Everybody gets to position.");
+            showNextButton();
+          } else {
+            movePlayerToMarker(choice);
+            setBgAndColor("status", "#AAAAFF", "#000066");
+            setText("status", "Daddy is about to give the four nearest players baits");
+            setText("gradeBlock", "Everybody gets to position.");
+            showNextButton();
+          }
+          //Hide markers
+          hideMarkers();
+        }
+        if (step === 3 || step === 10) {
+          hideNextButton();
+          const { nearest4, leftPair, rightPair } = fourNearestOnX();
+          const els = playerIds.map((id) => document.getElementById(id));
+          const waits = els.map((el) => waitForTransition(el));
+          if (noOverlap(nearest4, tetherPlayersDest)) {
+            leftPair.forEach((player, index) => {
+              var unitID = "p" + player;
+              document.getElementById(unitID).classList.add("baiting");
+              if (index === 0) {
+                shiftImage(unitID, 0, -30);
+                pairs[0] = [player, tetherPlayersDest[0]];
+              } else {
+                shiftImage(unitID, 0, 30);
+                pairs[1] = [player, tetherPlayersDest[1]];
+              }
+            });
+            rightPair.forEach((player, index) => {
+              var unitID = "p" + player;
+              document.getElementById(unitID).classList.add("baiting");
+              if (index === 0) {
+                shiftImage(unitID, 0, -30);
+                pairs[2] = [player, tetherPlayersDest[2]];
+              } else {
+                shiftImage(unitID, 0, 30);
+                pairs[3] = [player, tetherPlayersDest[3]];
+              }
+            });
+            await Promise.all(waits);
+            setBgAndColor("status", "#AAFFAA", "#006600");
+            if (tetherPlayersDest.includes(selectedChar)) {
+              setText("status", "<strong>[PASS]</strong> - You've gone to the location correctly. Now head towards the final location while baiting puddles.");
+              setText("gradeBlock", "Four nearest players got bait markers and shifted a bit to the the left or right. Puddles will start dropping soon.");
+            } else {
+              setText("status", "<strong>[PASS]</strong> - You've gone to the location correctly. Now head towards the final location while baiting puddles.");
+              setText("gradeBlock", "You and three other nearest players got bait markers and shifted a bit to the the left or right. Puddles will start dropping soon.");
+            }
+            assignMarkers();
+          } else {
+            nearest4.forEach((player, index) => {
+              var unitID = "p" + player;
+              document.getElementById(unitID).classList.add("baiting");
+            });
+            await Promise.all(waits);
+
+            lose++;
+            setBgAndColor("gradeBlock", "#FF99CC", "#660033");
+            setBgAndColor("status", "#FF99CC", "#660033");
+            setText("status", "<strong>[FAIL]</strong> - You messed up because now there is a bait on a tether player.");
+            setText("gradeBlock", "Press the refresh icon or change role to start again.");
+            setText("loseText", lose);
+          }
+        }
+        if (step === 4 || step === 11) {
+          if (selectedChar != 0) placeUnit(0);
+          if (selectedChar != 1) placeUnit(1);
+          if (selectedChar != 2) placeUnit(2);
+          if (selectedChar != 3) placeUnit(3);
+          if (selectedChar != 4) placeUnit(4);
+          if (selectedChar != 5) placeUnit(5);
+          if (selectedChar != 6) placeUnit(6);
+          if (selectedChar != 7) placeUnit(7);
+
+          movePlayerToMarker(choice);
+          storedChoice = choice;
+          setBgAndColor("status", "#AAAAFF", "#000066");
+          setText("status", "Daddy is about to release everything.");
+          setText("gradeBlock", "Everybody gets to position.");
+          showNextButton();
+          hideMarkers();
+        }
+        if (step === 5 || step === 12) {
+          // if fail
+          if (storedChoice % 2 === 0 && leftRight) {
+            lose++;
+            setBgAndColor("gradeBlock", "#FF99CC", "#660033");
+            setBgAndColor("status", "#FF99CC", "#660033");
+            setText("status", "<strong>[FAIL]</strong> - You messed up because you got killed by half platform cleave.");
+            setText("gradeBlock", "Press the refresh icon or change role to start again.");
+            setText("loseText", lose);
+            hideNextButton();
+          } else if (tetherPlayersDest.includes(selectedChar) && (storedChoice === 2 || storedChoice === 3 || storedChoice === 6 || storedChoice === 7)) {
+            lose++;
+            setBgAndColor("gradeBlock", "#FF99CC", "#660033");
+            setBgAndColor("status", "#FF99CC", "#660033");
+            setText("status", "<strong>[FAIL]</strong> - You messed up because you didn't go to the edge.");
+            setText("gradeBlock", "Press the refresh icon or change role to start again.");
+            setText("loseText", lose);
+            hideNextButton();
+          } else if (!tetherPlayersDest.includes(selectedChar) && (storedChoice === 0 || storedChoice === 1 || storedChoice === 4 || storedChoice === 5)) {
+            lose++;
+            setBgAndColor("gradeBlock", "#FF99CC", "#660033");
+            setBgAndColor("status", "#FF99CC", "#660033");
+            setText("status", "<strong>[FAIL]</strong> - You messed up because you didn't go to the marker.");
+            setText("gradeBlock", "Press the refresh icon or change role to start again.");
+            setText("loseText", lose);
+            hideNextButton();
+          } else if (isOverlappingWithOthers(playerIds[selectedChar], playerIds)) {
+            lose++;
+            setBgAndColor("gradeBlock", "#FF99CC", "#660033");
+            setBgAndColor("status", "#FF99CC", "#660033");
+            setText("status", "<strong>[FAIL]</strong> - You stacked with someone else.");
+            setText("gradeBlock", "Press the refresh icon or change role to start again.");
+            setText("loseText", lose);
+            hideNextButton();
+          } else {
+            resetTethers();
+            playerIds.forEach((player) => {
+              document.getElementById(player).classList.remove("baiting");
+            });
+            if (step === 5) {
+              setBgAndColor("status", "#AAFFAA", "#006600");
+              setText("status", "<strong>[PASS]</strong> - You've gone to the location correctly. Now do it again.");
+              setText("gradeBlock", "New set of tethers will be assigned to the previous baiters soon.");
+            } else {
+              setBgAndColor("status", "#AAFFAA", "#006600");
+              setText("status", "<strong>[PASS]</strong> - You've done it! This ends the quiz. Next you go close to the boss to take stack, but remember which corner you're from so that you can take the final towers for arena slam.");
+              setText("gradeBlock", "Press the refresh icon or change role to start again.");
+              hideNextButton();
+            }
+          }
+        }
+        if (step === 6) {
+          showMarkers(towerPosIds);
+          assignMarkers();
+          showTowers();
+          queueMovement = new Array();
+          inOut = Math.random() < 0.5; //true = in (left out, right in), false = out (left out, right in)
+          leftRight = Math.random() < 0.5; //true = left, false = right
+          if (inOut) {
+            moveImage("g1", -20, 203);
+            moveImage("g2", -20, 406);
+            moveImage("g3", 950, 0);
+            moveImage("g4", 950, 559);
+          } else {
+            moveImage("g1", -20, 0);
+            moveImage("g2", -20, 559);
+            moveImage("g3", 950, 203);
+            moveImage("g4", 950, 406);
+          }
+          if (leftRight) {
+            moveImage("g5", 70, 630, 90);
+            moveImage("g6", 670, 630, 90);
+          } else {
+            moveImage("g5", 270, 630, 90);
+            moveImage("g6", 870, 630, 90);
+          }
+          assign4TethersRandom(leftParty, rightParty);
+          setBgAndColor("gradeBlock", "#AAFFAA", "#006600");
+          setBgAndColor("status", "#AAAAFF", "#000066");
+
+          setText("status", "Portals and towers spawned.  Towers are about to trigger.  Where do you go?");
+          setText("gradeBlock", "Good luck.");
+        }
+        step++;
+        console.log("step", step);
+      }
+
+      function getNPCPoint(unitIndex) {
+        //Figure out which point they need to be at
+        const el = document.getElementById(`p${unitIndex}`);
+        const left = parseFloat(el.style.left) || 0;
+        const top = parseFloat(el.style.top) || 0;
+        let correctPosition = [left, top];
+
+        if (step === 0 || step === 7) // Tower Positions
+        {
+          if (leftParty.includes(unitIndex)) {
+            // if left side
+            let activeSide = towerPositions[0];
+            if (tetherPlayersDest.indexOf(unitIndex) >= 2) {
+              // if need to cross
+              if (findPairIndexByValue(pairs, unitIndex) === 0) {
+                // if top pair
+                correctPosition = activeSide[1];
+                queueMovement.push([unitIndex, "right"]);
+              } else {
+                // if bottom pair
+                correctPosition = activeSide[3];
+                queueMovement.push([unitIndex, "right"]);
+              }
+            } else {
+              // if staying
+              if (findPairIndexByValue(pairs, unitIndex) === 0) {
+                // if top pair
+                correctPosition = activeSide[0];
+                queueMovement.push([unitIndex, "down"]);
+              } else {
+                // if bottom pair
+                correctPosition = activeSide[2];
+                queueMovement.push([unitIndex, "up"]);
+              }
+            }
+          } else {
+            // if right side
+            let activeSide = towerPositions[1];
+            if (tetherPlayersDest.indexOf(unitIndex) < 2 && tetherPlayersDest.indexOf(unitIndex) !== -1) {
+              // if need to cross
+              if (findPairIndexByValue(pairs, unitIndex) === 2) {
+                // if top pair
+                correctPosition = activeSide[1];
+                queueMovement.push([unitIndex, "left"]);
+              } else {
+                // if bottom pair
+                correctPosition = activeSide[3];
+                queueMovement.push([unitIndex, "left"]);
+              }
+            } else {
+              // if staying
+              if (findPairIndexByValue(pairs, unitIndex) === 2) {
+                // if top pair
+                correctPosition = activeSide[0];
+                queueMovement.push([unitIndex, "down"]);
+              } else {
+                // if bottom pair
+                correctPosition = activeSide[2];
+                queueMovement.push([unitIndex, "up"]);
+              }
+            }
+          }
+        }
+
+        if (step === 2 || step === 9) // Bait Positions
+        {
+          if (!tetherPlayersDest.includes(unitIndex)) // needs to bait
+          {
+            if (leftParty.includes(unitIndex)) // if left side
+            {
+              let activeSide = baitPositions[0];
+              correctPosition = activeSide[1];
+            } else {
+              // if right side
+              let activeSide = baitPositions[1];
+              correctPosition = activeSide[0];
+            }
+          } else {
+            // needs to be far
+            if (leftParty.includes(unitIndex)) // if left side
+            {
+              let activeSide = baitPositions[0];
+              if (meleePlayers.includes(unitIndex)) correctPosition = activeSide[0];
+            } else {
+              // if right side
+              let activeSide = baitPositions[1];
+              if (meleePlayers.includes(unitIndex)) correctPosition = activeSide[1];
+            }
+          }
+        }
+
+        if (step === 4 || step === 11) // Final Positions
+        {
+          console.log("tetherPlay", tetherPlayersDest);
+          console.log("pairs", pairs);
+          if (!tetherPlayersDest.includes(unitIndex)) // needs to go to Markers
+          {
+            if (leftParty.includes(unitIndex)) // if left side
+            {
+              let activeSide = finalPositions[0];
+              if (pairs[0].includes(unitIndex)) {
+                // if top side
+                if (leftRight) {
+                  // if gate on left
+                  correctPosition = activeSide[3];
+                } else {
+                  // if gate right
+                  correctPosition = activeSide[2];
+                }
+              } else {
+                // bottom side
+                if (leftRight) {
+                  // if gate on left
+                  correctPosition = activeSide[7];
+                } else {
+                  // if gate on right
+                  correctPosition = activeSide[6];
+                }
+              }
+            } else {
+              // if right side
+              let activeSide = finalPositions[1];
+              if (pairs[2].includes(unitIndex)) {
+                // if top side
+                if (leftRight) {
+                  // if gate on left
+                  correctPosition = activeSide[3];
+                } else {
+                  // if gate right
+                  correctPosition = activeSide[2];
+                }
+              } else {
+                // bottom side
+                if (leftRight) {
+                  // if gate on left
+                  correctPosition = activeSide[7];
+                } else {
+                  // if gate on right
+                  correctPosition = activeSide[6];
+                }
+              }
+            }
+          } else {
+            // needs to go to Edge
+            if (leftParty.includes(unitIndex)) // if left side
+            {
+              let activeSide = finalPositions[0];
+              if (pairs[0].includes(unitIndex)) {
+                // if top side
+                if (leftRight) {
+                  // if gate on left
+                  correctPosition = activeSide[1];
+                } else {
+                  // if gate right
+                  correctPosition = activeSide[0];
+                }
+              } else {
+                // bottom side
+                if (leftRight) {
+                  // if gate on left
+                  correctPosition = activeSide[5];
+                } else {
+                  // if gate on right
+                  correctPosition = activeSide[4];
+                }
+              }
+            } else {
+              // if right side
+              let activeSide = finalPositions[1];
+              if (pairs[2].includes(unitIndex)) {
+                // if top side
+                if (leftRight) {
+                  // if gate on left
+                  correctPosition = activeSide[1];
+                } else {
+                  // if gate right
+                  correctPosition = activeSide[0];
+                }
+              } else {
+                // bottom side
+                if (leftRight) {
+                  // if gate on left
+                  correctPosition = activeSide[5];
+                } else {
+                  // if gate on right
+                  correctPosition = activeSide[4];
+                }
+              }
+            }
+          }
+        }
+
+        return correctPosition;
+      }
+
+      function placeUnit(unitIndex) {
+        pointIndex = getNPCPoint(unitIndex);
+        //Points have been figured out.  Now assign them based on the character.
+        var unitID = "p" + unitIndex;
+        if (step !== 4 && step !== 11) moveImage(unitID, pointIndex[0] - 15 + randomOffset(10), pointIndex[1] - 28 + randomOffset(30));
+        else moveImage(unitID, pointIndex[0] - 15, pointIndex[1] - 28);
+      }
+
+      // TETHER LOGIC
+
+      let tetherRaf = null;
+
+      function startTetherTracking(pairs) {
+        const svg = document.getElementById("lines");
+
+        // create 4 persistent line elements (reuse if you want)
+        const lines = pairs.map(() => {
+          const ln = document.createElementNS("http://www.w3.org/2000/svg", "line");
+          ln.setAttribute("stroke", "red");
+          ln.setAttribute("stroke-width", "3");
+          svg.appendChild(ln);
+          return ln;
+        });
+
+        function loop() {
+          for (let i = 0; i < pairs.length; i++) {
+            const { pId, gId } = pairs[i];
+            drawLineToElement(lines[i], document.getElementById(pId), document.getElementById(gId), svg);
+          }
+          tetherRaf = requestAnimationFrame(loop);
+        }
+
+        stopTetherTracking();
+        loop();
+      }
+
+      function stopTetherTracking() {
+        if (tetherRaf) cancelAnimationFrame(tetherRaf);
+        tetherRaf = null;
+      }
+
+      // Wait for an element’s move transitions to finish (left/top/transform)
+      function waitForMoveEnd(el, props = ["left", "top", "transform"]) {
+        return new Promise((resolve) => {
+          const pending = new Set(props);
+          function onEnd(e) {
+            if (!pending.has(e.propertyName)) return;
+            pending.delete(e.propertyName);
+            if (pending.size === 0) {
+              el.removeEventListener("transitionend", onEnd);
+              resolve();
+            }
+          }
+          el.addEventListener("transitionend", onEnd);
+        });
+      }
+
+      function buildCycleFromLeftPick(leftParty, rightParty) {
+        const L = shuffle(leftParty).slice(0, 2); // pick 2 random on left
+        const forbiddenRight = new Set(L.map((p) => mate[p])); // their mates on right
+
+        const R = rightParty.filter((p) => !forbiddenRight.has(p)); // the "other two"
+        // R should be length 2 if parties are truly mate-split
+
+        // B is the complement set (mates of A swapped to other side)
+        const B_L = R.map((p) => mate[p]); // mates of R are on left
+        const B_R = L.map((p) => mate[p]); // mates of L are on right
+
+        return {
+          A: { L, R },
+          B: { L: B_L, R: B_R },
+        };
+      }
+
+      function assign4TethersRandom(left, right) {
+        if (!tetherCycle) {
+          const { A, B } = buildCycleFromLeftPick(left, right);
+          tetherCycle = { A, B, useB: false };
+        }
+
+        const set = tetherCycle.useB ? tetherCycle.B : tetherCycle.A;
+        tetherCycle.useB = !tetherCycle.useB; // flip for next time
+        const L = shuffle(set.L);
+        const R = shuffle(set.R);
+        const gates = shuffle(["g1", "g2", "g3", "g4"]);
+
+        const pairs = [
+          { pId: `p${L[0]}`, gId: gates[0] },
+          { pId: `p${L[1]}`, gId: gates[1] },
+          { pId: `p${R[0]}`, gId: gates[2] },
+          { pId: `p${R[1]}`, gId: gates[3] },
+        ];
+
+        pairs.forEach((pair) => {
+          const gateNumber = parseInt(pair.gId.replace("g", "")); // 1–4
+          const playerIndex = parseInt(pair.pId.replace("p", ""));
+
+          const mappedIndex = 4 - gateNumber; // reverse mapping
+
+          tetherPlayersDest[mappedIndex] = playerIndex;
+        });
+        console.log(tetherPlayersDest);
+
+        // start tracking during movement
+        startTetherTracking(pairs);
+
+        // stop tracking when all involved elements finish moving
+        const elsToWait = pairs.flatMap((x) => [document.getElementById(x.pId), document.getElementById(x.gId)]);
+        Promise.all(elsToWait.map((el) => waitForMoveEnd(el))).then(() => {
+          stopTetherTracking();
+          // optional: draw one last time to snap-perfect end state
+          // (tracking loop already did this, but harmless)
+          startTetherTracking(pairs);
+          stopTetherTracking();
+        });
+
+        return pairs; // useful for debugging/logging
+      }
+
+      function resetTethers() {
+        // 1. Stop RAF loop
+        stopTetherTracking();
+
+        // 2. Remove all lines from SVG
+        const svg = document.getElementById("lines");
+        while (svg.firstChild) {
+          svg.removeChild(svg.firstChild);
+        }
+
+        // 3. Clear any stored references
+        tetherRaf = null;
+      }
+
+      function hideMarkers() {
+        finalPosIds.forEach((tid) => {
+          document.getElementById(tid).style.display = "none";
+        });
+      }
+
+      function showMarkers(markers) {
+        hideMarkers();
+        markers.forEach((tid) => {
+          document.getElementById(tid).style.display = "";
+        });
+      }
+
+      function hideTowers() {
+        document.getElementById("tow0").style.display = "none";
+        document.getElementById("tow1").style.display = "none";
+        document.getElementById("tow2").style.display = "none";
+        document.getElementById("tow3").style.display = "none";
+      }
+
+      function showTowers() {
+        document.getElementById("tow0").style.display = "";
+        document.getElementById("tow1").style.display = "";
+        document.getElementById("tow2").style.display = "";
+        document.getElementById("tow3").style.display = "";
+      }
+
+      function checkTowersHaveTwoPlayers() {
+        const results = {};
+
+        ["tow0", "tow1", "tow2", "tow3"].forEach((tid) => {
+          const towerEl = document.getElementById(tid);
+          const tr = towerEl.getBoundingClientRect();
+
+          let inside = [];
+
+          playerIds.forEach((pid) => {
+            const pEl = document.getElementById(pid);
+            const pc = getCenter(pEl);
+
+            if (pc.x >= tr.left && pc.x <= tr.right && pc.y >= tr.top && pc.y <= tr.bottom) {
+              inside.push(pid);
+            }
+          });
+
+          results[tid] = inside;
+        });
+
+        // pass/fail: every tower has exactly 2
+        const ok = Object.values(results).every((list) => list.length === 2);
+
+        return { ok, results };
+      }
+
+      function checkFourPerSide(arenaId, playerIds) {
+        const arena = document.getElementById(arenaId);
+        const ar = arena.getBoundingClientRect();
+        const midX = ar.left + ar.width / 2;
+
+        const left = [];
+        const right = [];
+
+        playerIds.forEach((pid) => {
+          const pEl = document.getElementById(pid);
+          const c = getCenter(pEl);
+          if (c.x < midX) left.push(Number(pid.slice(1)));
+          else right.push(Number(pid.slice(1)));
+        });
+
+        return {
+          ok: left.length === 4 && right.length === 4,
+          left,
+          right,
+        };
+      }
+
+      function fourNearestOnX() {
+        const bossEl = document.getElementById("arena");
+        const bossX = centerX(bossEl);
+
+        // rank all by closeness on X, take 4
+        const nearest4 = playerIds
+          .map((pid) => {
+            const x = centerX(document.getElementById(pid));
+            return { pid, x, dx: Math.abs(x - bossX), side: x < bossX ? "L" : "R" };
+          })
+          .sort((a, b) => a.dx - b.dx)
+          .slice(0, 4);
+
+        const left = nearest4.filter((p) => p.side === "L").sort((a, b) => a.dx - b.dx);
+        const right = nearest4.filter((p) => p.side === "R").sort((a, b) => a.dx - b.dx);
+
+        // Typical expected result: left.length === 2 && right.length === 2
+        return {
+          nearest4: nearest4.map((p) => Number(p.pid.slice(1))),
+          leftPair: left.slice(0, 2).map((p) => Number(p.pid.slice(1))),
+          rightPair: right.slice(0, 2).map((p) => Number(p.pid.slice(1))),
+        };
+      }
+
+      function isOverlappingWithOthers(playerId, playerIds) {
+        const p = document.getElementById(playerId);
+
+        const px = parseFloat(p.style.left);
+        const py = parseFloat(p.style.top);
+
+        for (const id of playerIds) {
+          if (id === playerId) continue; // skip itself
+
+          const other = document.getElementById(id);
+          const ox = parseFloat(other.style.left);
+          const oy = parseFloat(other.style.top);
+
+          if (px === ox && py === oy) {
+            return id; // return the player it's overlapping with
+          }
+        }
+
+        return null; // no overlap
+      }
+
+      async function waitForAllPlayers(playerIds) {
+        const promises = playerIds.map((id) => waitForMoveEnd(document.getElementById(id)));
+
+        await Promise.all(promises);
+      }
+
+      function waitForTransition(el) {
+        const cs = getComputedStyle(el);
+
+        // transition-duration / delay can be "0.3s, 0.3s" etc.
+        const toMs = (s) =>
+          s
+            .split(",")
+            .map((x) => x.trim())
+            .map((x) => (x.endsWith("ms") ? parseFloat(x) : parseFloat(x) * 1000));
+
+        const durations = toMs(cs.transitionDuration);
+        const delays = toMs(cs.transitionDelay);
+
+        const maxDur = Math.max(...durations, 0);
+        const maxDel = Math.max(...delays, 0);
+        const total = maxDur + maxDel;
+
+        // If there's no transition, resolve immediately
+        if (total === 0) return Promise.resolve();
+
+        return new Promise((resolve) => {
+          let done = false;
+
+          const finish = () => {
+            if (done) return;
+            done = true;
+            el.removeEventListener("transitionend", onEnd);
+            resolve();
+          };
+
+          const onEnd = (e) => {
+            // only care about this element
+            if (e.target !== el) return;
+            finish();
+          };
+
+          el.addEventListener("transitionend", onEnd);
+
+          // Fallback: resolve even if transitionend doesn't fire
+          setTimeout(finish, total + 50);
+        });
+      }
+
+      function movePlayerToMarker(choice) {
+        //Move the selected character to the place they clicked on
+        var targetClicked = "t" + choice;
+        var unitID = "p" + selectedChar;
+        var targetElement = document.getElementById(targetClicked);
+        var targetPos = [targetElement.style.left.substring(0, targetElement.style.left.length - 2) - 15, targetElement.style.top.substring(0, targetElement.style.top.length - 2) - 28];
+        moveImage(unitID, targetPos[0], targetPos[1]);
+      }
+
+      window.onload = setupBoard();
+    </script>
+  </body>
+</html>
